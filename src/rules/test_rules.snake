@@ -1,0 +1,42 @@
+rule one_rule:
+	output:
+		"{results}/{sample}_one.txt"
+	params:
+		job_name="test",
+		mem=1000,
+		time="0:10:00",
+		partition="amilan",
+		tmp_dir = "/tmp",
+		log = "{results}/logs/one_rule/{sample}_test"
+	threads:
+		1
+	#group:
+	#	"group1"
+	shell:
+		"""
+		sleep 15
+		touch {output}
+		"""
+
+
+rule two_rule:
+	input:
+		"{results}/{sample}_one.txt"
+	output:
+		"{results}/{sample}_two.txt"
+	params:
+		job_name="test",
+		mem=1000,
+		time="0:10:00",
+		partition="amilan",
+		tmp_dir = "/tmp",
+		log = "{results}/logs/two_rule/{sample}_test"
+	threads:
+		1
+	#group:
+	#	"group1"
+	shell:
+		"""
+		sleep 15
+		touch {output}
+		"""

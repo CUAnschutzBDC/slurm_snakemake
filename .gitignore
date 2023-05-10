@@ -1,0 +1,4 @@
+results
+.*
+!.gitignore
+!.gitattributes

@@ -1,0 +1,10 @@
+__default__ :
+        ntasks: 1
+        cpus-per-task: "{threads}"
+        nodes: "1"
+        output: "{log}-%j.out"
+        error: "{log}-%j.err"
+        time: "{params.time}"
+        mem: "{params.mem}"
+        partition: "{params.partition}"
+        job-name: "{params.job_name}"
