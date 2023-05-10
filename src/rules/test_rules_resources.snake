@@ -1,0 +1,48 @@
+rule one_rule:
+	output:
+		"{results}/{sample}_one.txt"
+	params:
+		tmp_dir = "/tmp"
+	resources:
+		job_name="test",
+		mem=1000,
+		time="0:10:00",
+		partition="amilan",
+		slurm=lambda wildcards: f"output={wildcards.results}/logs/group1/{wildcards.sample}_test.out error={wildcards.results}/logs/group1/{wildcards.sample}_test.err"
+	threads:
+		1
+	group:
+		"group1"
+	shell:
+		"""
+		echo "starting one_rule"
+		sleep 15
+		touch {output}
+		echo "finished one_rule"
+		"""
+
+
+rule two_rule:
+	input:
+		"{results}/{sample}_one.txt"
+	output:
+		"{results}/{sample}_two.txt"
+	params:
+		tmp_dir = "/tmp"
+	resources:
+		job_name="test",
+		mem=1000,
+		time="0:10:00",
+		partition="amilan",
+		slurm=lambda wildcards: f"output={wildcards.results}/logs/group1/{wildcards.sample}_test.out error={wildcards.results}/logs/group1/{wildcards.sample}_test.err"
+	threads:
+		1
+	group:
+		"group1"
+	shell:
+		"""
+		echo "starting two_rule"
+		sleep 15
+		touch {output}
+		echo "finished two_rule"
+		"""

@@ -12,5 +12,5 @@ rule all:
 
         
 # Snakes to run
-include: "src/rules/test_rules.snake"
+include: "src/rules/test_rules_resources.snake"
 
