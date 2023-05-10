@@ -7,6 +7,9 @@
 #SBATCH --output=logs/snakemake_%J.out
 #SBATCH --partition=amilan
 
+profile="slurm_profile" # Or set to slurm_profile_singularity if using singularity
+
+mkdir -p logs
 
 # Run snakemake pipeline
 snakemake \
@@ -14,4 +17,4 @@ snakemake \
     --jobs 15 \
     --latency-wait 60 \
     --ignore-incomplete \
-    --profile profile/ 
+    --profile $profile
