@@ -13,6 +13,10 @@ rule one_rule:
 		1
 	group:
 		"group1"
+	shadow:
+		"minimal" 
+	singularity:
+		"/home/kwellswrasman@xsede.org/peta_active/resources/singularity/atac_seq/general_docker/cut_and_run.v1.sif"
 	shell:
 		"""
 		echo "starting one_rule"
@@ -39,6 +43,10 @@ rule two_rule:
 		1
 	group:
 		"group1"
+	shadow:
+		"minimal"
+	singularity:
+		"/home/kwellswrasman@xsede.org/peta_active/resources/singularity/atac_seq/general_docker/cut_and_run.v1.sif"
 	shell:
 		"""
 		echo "starting two_rule"
