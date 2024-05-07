@@ -1,0 +1,97 @@
+##### aligning information #####
+
+# The path to the scratch direcotry. Your username will be determined given that you
+# can view it with $USER
+SCRATCH_DIR:
+    "/scratch/alpine"
+
+# The path to your working directory. Leaving this blank will just make it so this full path
+# is in your scratch space
+BASE_PATH:
+    "/pl/active/Anschutz_BDC"
+
+# Sample sheet. This is the path to the sample sheet. Should be a tab delimited
+# tsv file with the one column titled "sample" and a second column titled
+# "fastq1" with filenames relating to each sample. If paired end sequencing was
+# done, another columen should be titled "fastq2" with filenames for read 2.
+SAMPLE_TABLE:
+  "files/samples.tsv"
+
+# Project the name of the project
+PROJECT:
+  "RA_chip"
+
+# Reference. This should be the path to a directory created using bowtie2. Include
+# The prefix of the aligment files
+
+GENOME:
+  /pl/active/Anschutz_BDC/resources/ref/indices/bowtie2/mouse/GRCm38/GRCm38
+
+ANNOTATION:
+  mm10
+
+# Path to results directory
+RESULTS:
+  "results"
+
+# Path to adaptors file. This is included in the bbtools package under .../bbmap/resources/adaptors.fa
+# Not necessary if not using bbduk for trimming
+ADAPTORS:
+
+
+# Trim method, can be "bbduk", "cutadapt", or "no"
+TRIM_METHOD:
+  "cutadapt"
+
+# Genome size information can be found here: https://pypi.org/project/MACS2/
+# Some examples
+# hs: 2.7e9
+# mm: 1.87e9
+# ce: 9e7
+# dm: 1.2e8
+
+GENOME_SIZE:
+  1.87e9
+
+# Parameters for paired end or single end experiments
+PE:
+    cutadapt:      " -m 20 -a 'AGATCGGAAGAGCACACGTCTGAACTCCAGTCA' -A 'AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGT' "
+    salmon:        " --validateMappings --libType 'A' --numBootstraps 50 "
+    bbduk:         "ktrim=r k=23 mink=11 hdist=1 tpe tbo"
+
+
+SE:
+    cutadapt:      " -m 20 -a 'AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC' "
+    salmon:        " --validateMappings --fldMean 200 --fldSD 20 --libType 'A' --numBootstraps 50 "
+    bbduk:         "ktrim=r k=23 mink=11 hdist=1 tpe tbo"
+
+# The qvalue cutoff for macs2, if not included, the default of 0.05 will be used
+QVALUE:
+  0.01
+
+# Path to where fastq screen references will be saved. If the references have already been
+# downloaded they won't be downloaded again
+# Alternatively, you can pass the path to a fastq screen config file
+FASTQ_SCREEN_DATA:
+  "/pl/active/Anschutz_BDC/resources/ref/indices/fastq_screen/FastQ_Screen_Genomes/fastq_screen.conf"
+  #"/pl/active/Anschutz_BDC/resources/ref/indices/fastq_screen"
+
+##### Containers ######
+GENERAL_CONTAINER:
+  "docker/general_docker/chip.v1.sif"
+
+
+# The container for running picard tools
+PICARD_CONATINER:
+  "docker/picard_docker/picard.sif"
+
+# Path to picard jar file
+PICARD_JAR:
+  "docker/picard_docker/picard.jar"
+
+R_CONTAINER:
+  "docker/r_docker/chip_r.sif"
+
+# Path to fastq_screen container
+FASTQ_SCREEN:
+  "docker/fastq_screen/fastq_screen_v1.sif"

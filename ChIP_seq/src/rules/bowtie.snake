@@ -1,0 +1,210 @@
+# This runs bowtie on the files from the samples document can be single or paired end
+# It also removes duplicate reads, keeps only properly paired reads that are the primary 
+# aligment, and removes multimappers (XS flag in bowtie2)
+
+# Function to return paths of input files
+def _get_input(wildcards):
+    if wildcards.trim_method == "no":
+        # Grab path of the fastq file
+        fastq1 = SAMPLE_LIST.loc[wildcards.sample, "fastq1"]
+        data_dir = SAMPLE_LIST.loc[wildcards.sample, "data_dir"]
+        fastq1 = os.path.join(data_dir, fastq1)
+        # Make sure file exists
+        fastq1  = _check_path(fastq1)
+        if IS_PAIRED:
+            # Grab path of second read
+            fastq2 = SAMPLE_LIST.loc[wildcards.sample, "fastq2"]
+            fastq2 = os.path.join(data_dir, fastq2)
+            # Make sure file exists
+            fastq2 = _check_path(fastq2)
+            return(fastq1, fastq2)
+        else:
+            return(fastq1)
+    else:
+        fastq1 = os.path.join(RESULTS2, wildcards.trim_method + "_trim",
+            wildcards.sample + "_R1_trimmed.fastq.gz")
+        if IS_PAIRED:
+            # Grab path of second read
+            fastq2 = os.path.join(RESULTS2, wildcards.trim_method + "_trim",
+                wildcards.sample + "_R2_trimmed.fastq.gz")
+            return(fastq1, fastq2)
+        else:
+            return(fastq1)
+
+rule align:
+    input:
+        "{results}/{trim_method}_trim/{sample}.txt"
+    output:
+        completed_file = "{results}/bowtie2_{trim_method}_trim/{sample}_done.txt",
+        log_output     = "{results}/bowtie2_{trim_method}_trim/{sample}_metrics.out"
+    params:
+        genome     = GENOME,
+        fastqs     = _get_input,
+        paired     = IS_PAIRED,
+        scratch    = RESULTS2,
+        bam_output = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_Aligned.out.bam"),
+        bai_file   = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_Aligned.out.bam.bai"),
+        out_dir    = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim")
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/bowtie2/bowtie2_{wildcards.sample}_{wildcards.trim_method}_trim.out "
+            f"--error={wildcards.results}/logs/bowtie2/bowtie2_{wildcards.sample}__{wildcards.trim_method}_trim.err"
+        )
+    singularity:
+       GENERAL_CONTAINER
+    message:
+        "Aligning reads for {wildcards.sample}"
+    threads:
+        6
+    shell:
+        """
+        mkdir -p {params.out_dir}
+        if [ {params.paired} ]
+        then
+            all_fastqs=({params.fastqs})
+            bowtie2 \
+                --very-sensitive \
+                -k 10 \
+                -x {params.genome} \
+                --threads {threads} \
+                --rg-id {wildcards.sample} \
+                --rg 'SM:{wildcards.sample}' \
+                --met-file {output.log_output} \
+                -1 ${{all_fastqs[0]}} \
+                -2 ${{all_fastqs[1]}} | \
+                samtools view -b - | \
+                samtools sort -o {params.bam_output} -
+
+        else
+            bowtie2 \
+                --very-sensitive \
+                -k 10 \
+                -x {params.genome} \
+                --threads {threads} \
+                --rg-id {wildcards.sample} \
+                --rg 'SM:{wildcards.sample}' \
+                --met-file {output.log_output} \
+                -U {params.fastqs} | \
+                samtools view -b - | \
+                samtools sort -o {params.bam_output} -
+
+
+        fi
+
+        samtools index {params.bam_output}
+        touch {output.completed_file}
+       """
+
+#-S means input is SAM, no longer needed
+#-h means include header
+#-f Only output alignments with bit set to int (2 means read mapped in proper pair)
+#-F Don't output alignments with bits set in int (256 means not primary alignment)
+rule remove_mito:
+    input:
+        finished = "{results}/bowtie2_{trim_method}_trim/{sample}_done.txt"
+    output:
+        completed_file = "{results}/bowtie2_{trim_method}_trim/{sample}_remove_mt.txt"
+    params:
+        in_bam = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_Aligned.out.bam"),
+        mt_bam = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_remove_mt.bam"),
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/remove_mito/remove_mito_{wildcards.sample}_{wildcards.trim_method}_trim.out "
+            f"--error={wildcards.results}/logs/remove_mito/remove_mito_{wildcards.sample}__{wildcards.trim_method}_trim.err"
+        )
+    singularity:
+       GENERAL_CONTAINER
+    shell:
+        """
+        # Remove mapping to mitochondria
+        samtools idxstats {params.in_bam} \
+            | cut -f 1 \
+            | grep -v MT \
+            | xargs samtools view \
+            -b {params.in_bam} > {params.mt_bam}
+
+        samtools index {params.mt_bam}
+        touch {output.completed_file}
+        """
+
+
+rule mark_duplicates:
+    input:
+        finished = "{results}/bowtie2_{trim_method}_trim/{sample}_remove_mt.txt"
+    output:
+        picard_metrics = "{results}/bowtie2_{trim_method}_trim/{sample}_picard_dupMark.txt",
+        completed_file = "{results}/bowtie2_{trim_method}_trim/{sample}_finished.txt"
+    params:
+        mt_bam     = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_remove_mt.bam"),
+        picard_jar = PICARD_JAR,
+        temp_file  = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_dup_temp.bam"),
+        temp_dir   = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim"),
+        dup_bam    = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_mark_dup.bam")
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/mark_duplicates/mark_duplicates_{wildcards.sample}_{wildcards.trim_method}_trim.out "
+            f"--error={wildcards.results}/logs/mark_duplicates/mark_duplicates_{wildcards.sample}_{wildcards.trim_method}_trim.err"
+        )
+    singularity:
+       PICARD_CONTAINER
+    shell:
+        """
+        # Sort sam
+        java -jar {params.picard_jar} SortSam \
+            -I {params.mt_bam} -O {params.temp_file} \
+            -SO coordinate \
+            --TMP_DIR {params.temp_dir}
+
+        # Mark duplicates
+        java -jar {params.picard_jar} MarkDuplicates \
+            -I {params.temp_file} -O {params.dup_bam} \
+            --METRICS_FILE {output.picard_metrics}
+
+        rm {params.temp_file}
+        touch {output.completed_file}
+        """
+
+rule remove_duplicate_reads:
+    input:
+        completed_file = "{results}/bowtie2_{trim_method}_trim/{sample}_finished.txt",
+    output:
+        bam = "{results}/bowtie2_{trim_method}_trim/{sample}_remove_dup.bam",
+        bai = "{results}/bowtie2_{trim_method}_trim/{sample}_remove_dup.bam.bai"
+    params:
+        mapq_threshold = 20,
+        dup_bam        = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_mark_dup.bam")
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/remove_duplicate_reads/remove_duplicate_reads_{wildcards.sample}_{wildcards.trim_method}_trim.out "
+            f"--error={wildcards.results}/logs/remove_duplicate_reads/remove_duplicate_reads_{wildcards.sample}_{wildcards.trim_method}_trim.err"
+        )
+    singularity:
+       GENERAL_CONTAINER
+    shell:
+        """
+        samtools index {params.dup_bam}
+
+        # From tutorial https://cambiotraining.github.io/chipseq/Practicals/ATACseq/ATACseq_tutorial.html
+        # -f 3: only include alignments marked with the SAM flag 3, which means “properly paired and mapped”
+        # -F 4: exclude aligned reads with flag 4: the read itself did not map
+        # -F 8: exclude aligned reads with flag 8: their mates did not map
+        # -F 256: exclude alignments with flag 256, which means that Bowtie mapped the read to multiple places in the reference genome, and this alignment is not the best
+        # -F 1024: exclude alignments marked with SAM flag 1024, which indicates that the read is an optical or PCR duplicate (this flag would be set by Picard)
+        # -F 2048: exclude alignments marked with SAM flag 2048, indicating chimeric alignments, where Bowtie decided that parts of the read mapped to different regions in the genome. These records are the individual aligned segments of the read. They usually indicate structural variation. We’re not going to base peak calls on them.
+        # Finally, we use a basic quality filter, -q 15, to request high-quality alignments.
+        samtools view \
+            -b -h \
+            -f 3 \
+            -F 4 \
+            -F 8 \
+            -F 256 \
+            -F 1024 \
+            -F 2048 \
+            -q params.mapq_threshold \
+            -o {output.bam} \
+            {params.dup_bam}
+
+        samtools index {output.bam}
+        """
+
+

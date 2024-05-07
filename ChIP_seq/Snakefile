@@ -1,0 +1,143 @@
+""" Snake pipeline for running RNAseq analysis """
+
+# Configure shell for all rules 
+shell.executable("/bin/bash")
+shell.prefix("set -o nounset -o pipefail -o errexit -x; ")
+import subprocess # check if necessary
+import glob
+import os 
+import re
+import pandas as pd
+
+# Set apptainer bindings NOT A PERMANENT SOLUTION
+os.environ["APPTAINER_BIND"] = "/scratch/alpine:/scratch/alpine,/pl/active/Anschutz_BDC:/pl/active/Anschutz_BDC,/tmp:/tmp"
+
+# Parameters from config.yaml
+SCRATCH_DIR       = config["SCRATCH_DIR"]
+BASE_PATH         = config["BASE_PATH"]
+SAMPLE_TABLE      = config["SAMPLE_TABLE"]
+GENOME            = config["GENOME"]
+RESULTS           = config["RESULTS"]
+ADAPTORS          = config["ADAPTORS"]
+TRIM_METHOD       = config["TRIM_METHOD"]
+PROJECT           = config["PROJECT"]
+GENOME_SIZE       = config["GENOME_SIZE"]
+ANNOTATION        = config["ANNOTATION"]
+FASTQ_SCREEN_DATA = config["FASTQ_SCREEN_DATA"]
+GENERAL_CONTAINER = config["GENERAL_CONTAINER"]
+R_CONTAINER       = config["R_CONTAINER"]
+PICARD_CONTAINER  = config["PICARD_CONATINER"]
+PICARD_JAR        = config["PICARD_JAR"]
+QVALUE            = config["QVALUE"]
+FASTQ_SCREEN      = config["FASTQ_SCREEN"]
+
+# Make the desired path in scratch
+#user_variable = os.environ.get('USER')
+user_variable = "kwellswrasman@xsede.org"
+scratch_dir = os.path.join(SCRATCH_DIR, user_variable)
+
+current_dir = os.getcwd()
+rel_path_to_home = os.path.relpath(current_dir, start=BASE_PATH)
+
+RESULTS2 = os.path.join(scratch_dir, rel_path_to_home, RESULTS)
+os.makedirs(RESULTS2, exist_ok = True)
+
+# Make fastq screen dir
+if os.path.isdir(FASTQ_SCREEN_DATA):
+    os.makedirs(FASTQ_SCREEN_DATA, exist_ok = True)
+
+# Pull out sample names and fastq files
+SAMPLE_LIST = pd.read_table(config["SAMPLE_TABLE"]).set_index("sample", drop = False)
+SAMPLES = SAMPLE_LIST.index.values
+IS_PAIRED = "fastq2" in SAMPLE_LIST.columns
+
+if IS_PAIRED:
+    CMD_PARAMS = config["PE"]
+else:
+    CMD_PARAMS = config["SE"]
+
+# Function to check paths for input files/directories
+def _check_path(path):
+    if os.path.exists(path):
+        return os.path.abspath(path)
+    else:
+        sys.exit("ERROR: " + path + " does not exist.")
+
+
+
+# Set sample/group names
+SAMPLES = [x.strip() for x in SAMPLES]
+
+# Get control information
+SAMPLE_CONTROL = {}
+for sample, control in zip(SAMPLE_LIST.index.values, SAMPLE_LIST.control.values):
+    if control != "No_ctl":
+        print(control)
+        for one_control in control.split(","):
+            SAMPLE_CONTROL[sample + "_" + one_control] = sample
+
+# NOTE: now when running MACS2... expand("...{sample}...", sample = SAMPLE_CONTROL.keys())
+
+# Check/set directory/file paths
+if not os.path.exists(RESULTS):
+    os.makedirs(RESULTS)
+RESULTS  = _check_path(RESULTS)
+
+if not QVALUE:
+    QVALUE = 0.05
+else:
+    QVALUE = float(QVALUE)
+
+# Final output files
+rule all:
+    input:
+        # Fastqc summary
+        expand(
+            "{results}/fastqc_pre_trim_summary_untrimmed.tsv",
+            results = RESULTS
+            ),
+        # Run fastq screen
+        expand(
+            "{results}/fastq_screen/fastq_screen_barplot.pdf",
+            results = RESULTS
+        ),
+        # Output of adaptor trimming
+        expand(
+            "{results}/{trim_method}_trim/{sample}.txt",
+            results = RESULTS, sample = SAMPLES,
+            trim_method = TRIM_METHOD),
+        # Fastqc summary
+        expand(
+            "{results}/fastqc_{trim_method}_summary_trimmed.tsv",
+            results = RESULTS, trim_method = TRIM_METHOD
+            ),
+        # bowtie2, remove mito, remove duplicates
+        expand(
+            "{results}/bowtie2_{trim_method}_trim/{sample}_remove_dup.bam",
+            results = RESULTS, trim_method = TRIM_METHOD, sample = SAMPLES
+            ),
+        # Call peaks
+        expand(
+            "{results}/macs2_{trim_method}_trim/{sample}_peaks.narrowPeak",
+            results = RESULTS, trim_method = TRIM_METHOD, sample = SAMPLE_CONTROL.keys()
+            ),
+        # Make quality sample sheet
+        expand(
+            "{results}/quality_sample_sheet_{trim_method}.csv",
+            results = RESULTS, trim_method = TRIM_METHOD    
+            ),
+        # Make bigwigs
+        # expand(
+        #    "{results}/bigwig_{trim_method}_trim/{sample}_Aligned.bw",
+        #    results = RESULTS, trim_method = TRIM_METHOD, sample = SAMPLES
+        #    )
+
+
+# Snakes to run
+include: "src/rules/fastqc.snake"
+include: "src/rules/trimming.snake"
+include: "src/rules/bowtie.snake"
+include: "src/rules/macs2.snake"
+include: "src/rules/chip_quality.snake"
+include: "src/rules/make_bigwig.snake"
+include: "src/rules/fastq_screen.snake"

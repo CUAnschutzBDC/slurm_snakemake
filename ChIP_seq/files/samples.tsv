@@ -1,0 +1,8 @@
+sample	fastq1	fastq2	data_dir	control	replicate
+Input_1	Input_1_S15_L006_R1_001.fastq.gz	Input_1_S15_L006_R2_001.fastq.gz	raw_data	No_ctl	1
+Input_2	Input_2_S16_L006_R1_001.fastq.gz	Input_2_S16_L006_R2_001.fastq.gz	raw_data	No_ctl	2
+Input_3	Input_3_S17_L006_R1_001.fastq.gz	Input_3_S17_L006_R2_001.fastq.gz	raw_data	No_ctl	3
+Input_4	Input_4_S18_L006_R1_001.fastq.gz	Input_4_S18_L006_R2_001.fastq.gz	raw_data	No_ctl	4
+NKX_1	NKX_1_S19_L006_R1_001.fastq.gz	NKX_1_S19_L006_R2_001.fastq.gz	raw_data	Input_1	1
+NKX_2	NKX_2_S20_L006_R1_001.fastq.gz	NKX_2_S20_L006_R2_001.fastq.gz	raw_data	Input_2	2
+NKX_3	NKX_3_S21_L006_R1_001.fastq.gz	NKX_3_S21_L006_R1_001.fastq.gz	raw_data	Input_3	3

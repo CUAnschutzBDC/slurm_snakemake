@@ -1,0 +1,4 @@
+__default__ :
+        ntasks: 1
+        cpus-per-task: "{threads}"
+        nodes: "1"

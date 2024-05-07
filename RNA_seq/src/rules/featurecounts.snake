@@ -1,0 +1,112 @@
+def _get_strandedness(wildcards):
+    in_path = os.path.join(wildcards.results, "infer_experiment_" + wildcards.trim_method + "_trim",
+     wildcards.sample + "_experiment.txt")
+    if os.path.exists(in_path):
+        with open(in_path) as infile:
+            next(infile)
+            next(infile)
+            next(infile)
+            count_list = []
+            for line in infile:
+                line = line.strip().split(": ")
+                count_list.append(float(line[1]))
+        max_value = max(count_list)
+        max_position = count_list.index(max_value)
+        print(count_list)
+        if max_value < 0.8:
+            return(0)
+        elif(max_position == 1):
+            return(1)
+        elif(max_position == 2):
+            return(2)
+        else:
+            sys.exit("can't determine strand for featurecounts")
+
+rule find_strandedness:
+    input:
+        "{results}/star_{trim_method}_trim/{sample}_finished.txt"   
+    output:
+        "{results}/infer_experiment_{trim_method}_trim/{sample}_experiment.txt"
+    resources:
+        job_name="count",
+        mem_mb=1000,
+        time="00:10:00",
+        partition="amilan",
+        slurm=lambda wildcards: (
+            f"output={wildcards.results}/logs/infer_experiment/infer_experiment_{wildcards.sample}_{wildcards.trim_method}_trim.out "
+            f"error={wildcards.results}/logs/infer_experiment/infer_experiment_{wildcards.sample}_{wildcards.trim_method}_trim.err"
+        )
+    params:
+        bed = BED,
+        bam = os.path.join(RESULTS2, "star_{trim_method}_trim/{sample}_Aligned.sortedByCoord.out.bam")
+    shell:
+        """
+        infer_experiment.py -r {params.bed} -i {params.bam} > {output}
+        """
+
+# This runs featureCounts and makes a count table based on the output
+rule count:
+    input:
+        "{results}/star_{trim_method}_trim/{sample}_finished.txt",
+        "{results}/infer_experiment_{trim_method}_trim/{sample}_experiment.txt" 
+    output:
+        "{results}/featureCount_{trim_method}_trim/{sample}_finished.txt"
+    resources:
+        job_name="count",
+        mem_mb=8000,
+        time="00:30:00",
+        partition="amilan",
+        slurm=lambda wildcards: (
+            f"output={wildcards.results}/logs/featureCounts/featureCounts_{wildcards.sample}_{wildcards.trim_method}_trim.out "
+            f"error={wildcards.results}/logs/featureCounts/featureCounts_{wildcards.sample}_{wildcards.trim_method}_trim.err"
+        )
+    params:
+        gtf         = GTF,
+        output_file = "countsOutput",
+        opts        = CMD_PARAMS["featureCounts"],
+        bam_in      = os.path.join(RESULTS2, "star_{trim_method}_trim/{sample}_Aligned.sortedByCoord.out.bam"),
+        counts_dir  = os.path.join(RESULTS2, "featureCount_{trim_method}_trim"),
+        counts_out  = os.path.join(RESULTS2, "featureCount_{trim_method}_trim/{sample}_countsOutput"),
+        strand      = _get_strandedness
+    singularity:
+       GENERAL_CONTAINER
+    shell:
+        """
+        echo {params.strand}
+        mkdir -p {params.counts_dir}
+        featureCounts \
+            {params.opts} \
+            -s {params.strand} \
+            -a {params.gtf} \
+            -o {params.counts_out} \
+            {params.bam_in}
+
+        touch {output}
+        """
+
+rule count_table:
+    input:
+        expand(
+            "{results}/featureCount_{trim_method}_trim/{sample}_finished.txt",
+            sample=SAMPLES, trim_method = TRIM_METHOD, results = RESULTS
+        )
+    output:
+        "{results}/{project}_countTable_{trim_method}_trim.txt"
+    resources:
+        job_name="count_table",
+        mem_mb=1000,
+        time="00:10:00",
+        partition="amilan",
+        slurm=lambda wildcards: (
+            f"output={wildcards.results}/logs/featureCounts/{wildcards.project}_countTable_{wildcards.trim_method}_trim.out "
+            f"error={wildcards.results}/logs/featureCounts/{wildcards.project}_countTable_{wildcards.trim_method}_trim.err"
+        )
+    params:
+        in_files    = expand(
+            "{results}/featureCount_{trim_method}_trim/{sample}_countsOutput",
+            sample=SAMPLES, trim_method = TRIM_METHOD, results = RESULTS2
+        )
+    singularity:
+       GENERAL_CONTAINER
+    script:
+        "../scripts/countTable.py"

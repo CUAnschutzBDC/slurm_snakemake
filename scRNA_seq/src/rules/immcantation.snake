@@ -1,0 +1,164 @@
+# The -b is a path within the container. It should not need to be changed.
+rule igblast_bcr:
+	input:
+		"{results}/logs/{sample}_count_done.txt"
+	output:
+		"{results}/{sample}/outs/immcantation/bcr/{sample}_finished.txt"
+	params:
+		job_name  = "{sample}_immcantation",
+		memory    = "select[mem>100] rusage[mem=100]",
+		fasta     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_b/filtered_contig.fasta",
+		annot     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_b/filtered_contig_annotations.csv",
+		outdir    = "{results}/{sample}/outs/immcantation/bcr"
+	singularity:
+		config["IMMCANTATION_CONTAINER"]
+	log:
+		"{results}/logs/immcantation/immcantation_{sample}"
+	threads:
+		10
+	shell:
+		"""
+		AssignGenes.py igblast \
+			-s {params.fasta} \
+			-b /usr/local/share/igblast \
+			--organism human \
+			--loci ig \
+			--format blast \
+			--outdir {params.outdir}
+
+
+		MakeDb.py igblast \
+			-i {params.outdir}/filtered_contig_igblast.fmt7 \
+			-s {params.fasta} \
+			-r /usr/local/share/germlines/imgt/human/vdj/imgt_human_*.fasta \
+			--10x {params.annot} \
+			--extended
+
+		echo "Finished igblast" > {output}
+		"""
+
+# The -b is a path within the container. It should not need to be changed.
+rule igblast_tcr:
+	input:
+		"{results}/logs/{sample}_count_done.txt"
+	output:
+		"{results}/{sample}/outs/immcantation/tcr/{sample}_finished.txt"
+	params:
+		job_name  = "{sample}_immcantation",
+		memory    = "select[mem>100] rusage[mem=100]",
+		fasta     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_t/filtered_contig.fasta",
+		annot     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_t/filtered_contig_annotations.csv",
+		outdir    = "{results}/{sample}/outs/immcantation/tcr"
+	singularity:
+		config["IMMCANTATION_CONTAINER"]
+	log:
+		"{results}/logs/immcantation/immcantation_{sample}"
+	threads:
+		10
+	shell:
+		"""
+		AssignGenes.py igblast \
+			-s {params.fasta} \
+			-b /usr/local/share/igblast \
+			--organism human \
+			--loci tr \
+			--format blast \
+			--outdir {params.outdir}
+
+
+		MakeDb.py igblast \
+			-i {params.outdir}/filtered_contig_igblast.fmt7 \
+			-s {params.fasta} \
+			-r /usr/local/share/germlines/imgt/human/vdj/imgt_human_*.fasta \
+			--10x {params.annot} \
+			--extended
+
+		echo "Finished igblast" > {output}
+		"""
+
+rule make_clone_input:
+	input:
+		"{results}/{sample}/outs/immcantation/bcr/filtered_contig_igblast_db-pass.tsv"
+	output:
+		"{results}/{sample}/outs/immcantation/bcr/filtered_contig_igblast_db-pass_sample.tsv"
+	params:
+		job_name    = "make_input",
+		memory      = "select[mem>5] rusage[mem=5]",
+	singularity:
+		config["IMMCANTATION_CONTAINER"]
+	log:
+		"{results}/logs/make_input/{sample}_add_sample_name"
+	threads:
+		1
+	shell:
+		"""
+		awk -v OFS='\t' \
+		'NR == 1 {{print "sample", $0; next}} {{print "{wildcards.sample}", $0}}' \
+		{input} > {output}
+		"""
+rule make_clone_input2:
+	input:
+		expand(
+			"{{results}}/{sample}/outs/immcantation/bcr/filtered_contig_igblast_db-pass_sample.tsv",
+			sample = SAMPLES		
+			)
+	output:
+		"{results}/R_analysis/merged/files/immcantation_combined.tsv"
+	params:
+		job_name    = "make_input",
+		memory      = "select[mem>5] rusage[mem=5]"
+	singularity:
+		config["IMMCANTATION_CONTAINER"]
+	log:
+		"{results}/logs/make_input/combine_samples"
+	threads:
+		1
+	shell:
+		"""
+		awk 'NR==1 {{print; next}} FNR>1' {input} > {output}
+		"""
+
+# https://changeo.readthedocs.io/en/stable/tools/DefineClones.html#defineclones
+# https://immcantation.readthedocs.io/en/stable/tutorials/intro-lab.html
+rule define_clones:
+	input:
+		immcantation_file = "{results}/R_analysis/merged/files/immcantation_combined.tsv",
+		#script_file = "{results}/run_scripts/merged__07_run_immcantation_run.txt"
+	output:
+		final_output = "{results}/R_analysis/merged/define_clones/all_clones_finished.txt",
+		sample_output = "{results}/R_analysis/merged/define_clones/immcantation_combined_clone-pass_sample.tsv",
+		all_output = "{results}/R_analysis/merged/define_clones/immcantation_combined_clone-pass.tsv"
+	params:
+		job_name    = "call_clones",
+		memory      = "select[mem>100] rusage[mem=100]",
+		outdir      = "{results}/R_analysis/merged/define_clones",
+		distance    = 0.15
+	singularity:
+		config["IMMCANTATION_CONTAINER"]
+	log:
+		"{results}/logs/define_clones/define_clones"
+	threads:
+		10
+	shell:
+		"""
+		# Run on samples separately
+		DefineClones.py \
+			-d {input.immcantation_file} \
+			-o {output.sample_output} \
+			--nproc 10 \
+			--gf sample \
+			--model ham \
+			--norm len \
+			--dist {params.distance}
+		
+		# Run on samples combined
+		DefineClones.py \
+			-d {input.immcantation_file} \
+			-o {output.all_output} \
+			--nproc 10 \
+			--model ham \
+			--norm len \
+			--dist {params.distance} 
+
+		echo "Finished define clones" > {output}
+		"""

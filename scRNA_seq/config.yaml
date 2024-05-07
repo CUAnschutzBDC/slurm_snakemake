@@ -1,0 +1,164 @@
+# ==== Config file for running the 10x Cell Ranger pipeline ====================
+
+# The path to the scratch direcotry. Your username will be determined given that you
+# can view it with $USER
+SCRATCH_DIR:
+    "/scratch/alpine"
+
+# The path to your working directory. Leaving this blank will just make it so this full path
+# is in your scratch space
+BASE_PATH:
+    "/pl/active/Anschutz_BDC"
+    
+# Path to the fastq directory, multiple directories can be given.
+RAW_DATA:
+    - "raw_data"
+
+# A list of sample names. This will be the name of the output folder. All sample 
+# names must be unique. There must be the same number of sample names as RNA_samples
+# below.
+SAMPLES:
+    - "Npod6456_PLN"
+    - "Npod6553_PLN"
+    - "nPOD6247_PLN"
+
+# Sample names separated by groups to aggregate. If no samples to aggregate,
+# leave this blank. Structure is as follows:
+# AGGR_SAMPLES:
+#   GROUP_NAME:
+#      - "samplex"...
+AGGR_SAMPLES:
+
+# Sample names for gene expression fastqs. If the same libraries were
+# sequenced multiple times, just include all the fastq directories in the
+# RAW_DATA list and make sure the fastqs from all runs begin with the
+# sample name. Only fastqs that begin with the sample name will be 
+# included in the analysis.
+RNA_SAMPLES:
+    - "Npod6456_PLN_GEX"
+    - "Npod6553_PLN_GEX"
+    - "nPOD6247_PLN_GEX"
+
+# Sample names for CITE-seq and cell hashing fastqs. If 
+# the libraries were sequenced multiple times, just make sure the fastqs 
+# from all runs begin with the sample name. If CITE-seq or cell hashing 
+# was not performed, leave this blank. If you have CITE-seq on only a
+# a subset of samples, keep the slot empty (ex. - "")
+ADT_SAMPLES:
+    - "Npod6456_PLN_CSP"
+    - "Npod6553_PLN_CSP"
+    - "nPOD6247_PLN_CSP"
+
+# Sample names for TCR VDJ fastqs. Follow the same parameters required for gene
+# expression fastqs. If VDJ sequencing was not performed, leave this blank.
+VDJ_T_SAMPLES:
+    - "Npod6456_PLN_TCR"
+    - "Npod6553_PLN_TCR"
+    - "nPOD6247_PLN_TCR"
+
+# Sample names for BCR VDJ fastqs. Follow the same parameters required for gene
+# expression fastqs. If VDJ sequencing was not performed, leave this blank.
+VDJ_B_SAMPLES:
+    - "Npod6456_PLN_BCR"
+    - "Npod6553_PLN_BCR"
+    - "nPOD6247_PLN_BCR"
+
+# Path to the output directory.
+RESULTS:
+    "results"
+
+# Path to the Cell Ranger genome reference.
+GENOME:
+    "/home/kwellswrasman@xsede.org/peta_active/resources/ref/cellranger/human/refdata-gex-GRCh38-2020-A"
+
+# Path to the antibody reference table used to extract the antibody name 
+# and barcode. If CITE-seq or cell hashing was not performed, leave this 
+# blank.
+ADT_REF:
+    "files/antibody_barcodes.csv"
+
+# Path to the Cell Ranger VDJ reference. If VDJ sequencing was not performed,
+# leave this blank.
+VDJ_REF:
+    "/home/kwellswrasman@xsede.org/peta_active/resources/ref/cellranger/human/refdata-cellranger-vdj-GRCh38-alts-ensembl-5.0.0"
+
+# Maximum number of jobs per sample that can be submitted by Cell Ranger
+# at a time.
+MAX_JOBS:
+    24
+
+# Path to an LSF template, this is optional.
+SLURM_TEMPLATE:
+    "slurm.template"
+
+# Arguments to pass for chemistry. Only use this if the run failed.
+CHEMISTRY:
+    
+
+VELOCYTO_GROUP:
+
+# =============================================================================== #
+
+# Config for running R scripts
+SCRIPT_PATH:
+    "src/scripts"
+
+# Path to all scripts to run, put these in the order you want them run.
+SCRIPTS_RUN:
+
+
+# If the exact same scripts will be run for multiple samples, put them
+# here. This is a dictionary with sample and scripts_run as keys.
+# Within a sample, the scripts will be run in order, otherwise the
+# scripts will be run in parallel. Set to "all" if you want to run
+# on all samples
+SAMPLE_SCRIPTS:
+    samples:
+        "all"
+    scripts_run:
+        - "02_Initial_processing.R"
+        - "03_remove_doublets.R"
+        - "04_adt_dsb_normalization.R"
+        - "05_PCA.R"
+        - "06a_UMAP_find_resolution.R"
+        - "06b_UMAP.R"
+        - "07_name_clusters.R"
+        - "07b_name_clusters_manual.R"
+        - "08_find_markers.R"
+        - "cd4_cd8_subsets.R"
+        - "cd4_cd8_clones_immcantation.R"
+
+# If merging all samples, put the scripts to process them below. Under
+# samples include what samples should be merged. If merging all samples,
+# set to "all"
+MERGE_SCRIPTS:
+    # samples:
+    #     "all"
+    # scripts_run:
+        # - "01_Initial_processing.R"
+        # - "02_PCA.R"
+        # - "03_batch_correction.R"
+        # - "04a_UMAP_find_resolution.R"
+        # - "04b_UMAP.R"
+        # - "05_name_clusters.R"
+        # - "06_remove_doublets.R"
+
+
+# Path to the sample info sheet. This contains the information about if the
+# sample has HTOs and ADTs. It is also where you will add in information
+# about the number of dimensions and resoultion. See files/sample_info.tsv
+# for an example.
+SAMPLE_INFO:
+    "files/sample_info.tsv"
+
+RSCRIPT_CONTAINER:
+    "docker/r_docker/r_docker.sif"
+
+DROPKICK_CONTAINER:
+    "docker/dropkick/dropkick.sif"
+
+SCAR_CONTAINER:
+    "docker/scar/scar.sif"
+
+IMMCANTATION_CONTAINER:
+    "docker/immcantation/immcantation.sif"
