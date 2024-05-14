@@ -136,6 +136,8 @@ def get_efficiencies(job_dict):
 				job_dict[job_id]["memory_utilized"] = line.split(":")[1]
 			elif re.search("Memory Efficiency", line):
 				job_dict[job_id]["memory_efficiency"] = line.split(":")[1]
+			elif re.search("Job Wall-clock", line):
+				job_dict[job_id]["run_time"] = line.split(": ")[1]
 
 
 def make_data_frame(job_dict, output_file, keep_failed):
