@@ -21,11 +21,11 @@ SAMPLE_TABLE:
 
 # Project the name of the project
 PROJECT:
-  "chd4_davidson"
+  "human_cytokine"
 
 # Reference. This should be the path to a directory created using star
 GENOME:
-  /pl/active/Anschutz_BDC/resources/ref/indices/star/mouse/GRCm38
+  /pl/active/Anschutz_BDC/resources/ref/indices/star/human/GRCh38
 
 # Combined genome if spike-ins were used. This should be a path to a combined index using
 # star. Can leave blank if no spike-ins were used.
@@ -33,11 +33,11 @@ COMBINED_GENOME:
 
 # GTF. This is a path to the gtf file. Should match the genome fa used
 GTF:
-  /pl/active/Anschutz_BDC/resources/ref/annotation/mouse/GRCm38/gtf/Mus_musculus.GRCm38.96.gtf
+  /pl/active/Anschutz_BDC/resources/ref/annotation/human/GRCh38/gtf/Homo_sapiens.GRCh38.95.gtf
 
 # Bed file to use with infer_experiment.py
 BED:
-  /pl/active/Anschutz_BDC/resources/ref/annotation/mouse/GRCm38/bed/Mus_musculus.GRCm38.96.bed
+  /pl/active/Anschutz_BDC/resources/ref/annotation/human/GRCh38/bed/Homo_sapiens.GRCh38.95.bed
 
 
 # Combined gtf if spike-ins were used. Should match the genome fa used.
@@ -71,7 +71,27 @@ SE:
     featureCounts: " --extraAttributes 'gene_name,gene_biotype' "
     bbduk:         "ktrim=r k=23 mink=11 hdist=1 tpe tbo"
 
+# Path to where fastq screen references will be saved. If the references have already been
+# downloaded they won't be downloaded again
+# Alternatively, you can pass the path to a fastq screen config file
+FASTQ_SCREEN_DATA:
+  "/pl/active/Anschutz_BDC/resources/ref/indices/fastq_screen/FastQ_Screen_Genomes/fastq_screen.conf"
+  #"/pl/active/Anschutz_BDC/resources/ref/indices/fastq_screen"
+
+
+# Path to file containing rmats info. Expects a tsv file with sample, group, and name in the header
+# group column must contain `group1` and `group2`. This is used to pull out the groups to be compared
+# with rmats
+RMATS_INFO:
+  "files/rmats_sample_info.tsv"
 
 #################################### Docker images #############################################
 GENERAL_CONTAINER:
-  "docker/general_docker/rnaseq_v1.sif"
+  "docker/general_docker/rnaseq_general_v3.sif"
+
+R_CONTAINER:
+  "docker/r_docker/rnaseq_r_v1.sif"
+
+# Path to fastq_screen container
+FASTQ_SCREEN:
+  "docker/fastq_screen/fastq_screen_v1.sif"

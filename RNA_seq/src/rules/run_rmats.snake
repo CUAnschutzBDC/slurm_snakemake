@@ -1,0 +1,71 @@
+def _get_group(wildcards, group):
+    rmats_group = pd.read_table(RMATS_INFO).set_index("sample", drop = False)
+    rmats_group = rmats_group[rmats_group['group'] == group]
+    all_samples = rmats_group["sample"].to_list()
+    results_path = os.path.join(RESULTS2, "star_" + wildcards.trim_method + "_trim")
+    all_files = [os.path.join(results_path, i + "_Aligned.sortedByCoord.out.bam") for i in all_samples]
+    write_file = ",".join(all_files) + "\n"
+    return(write_file)
+
+rule create_input:
+    input:
+        expand(
+            "{{results}}/star_{{trim_method}}_trim/{sample}_finished.txt",
+            sample = SAMPLES
+        )
+    output:
+        output1 = "{results}/rmats_{trim_method}_trim/group1_input.txt",
+        output2 = "{results}/rmats_{trim_method}_trim/group2_input.txt"
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/rmats/rmats_input_{wildcards.trim_method}_trim.out "
+            f"--error={wildcards.results}/logs/rmats/rmats_input_{wildcards.trim_method}_trim.err "
+            f"--ntasks=1"
+        )
+    params:
+        group1 = lambda wildcards: _get_group(wildcards, group="group1"),
+        group2 = lambda wildcards: _get_group(wildcards, group="group2")
+    threads:
+        1
+    singularity:
+       GENERAL_CONTAINER
+    shell:  
+        """
+        echo "{params.group1}" > {output.output1}
+        echo "{params.group2}" > {output.output2}
+        """
+
+rule run_rmats:
+    input:
+        input1 = "{results}/rmats_{trim_method}_trim/group1_input.txt",
+        input2 = "{results}/rmats_{trim_method}_trim/group2_input.txt"
+    output:
+        output1 = "{results}/rmats_{trim_method}_trim/rmats_done.txt",
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/rmats/rmats_run_{wildcards.trim_method}_trim.out "
+            f"--error={wildcards.results}/logs/rmats/rmats_run_{wildcards.trim_method}_trim.err "
+            f"--ntasks=4"
+        )
+    params:
+        gtf      = GTF,
+        out_dir  =  "{results}/rmats_{trim_method}_trim",
+        temp_dir = RESULTS2
+    threads:
+        4
+    singularity:
+       GENERAL_CONTAINER
+    shell:  
+        """
+        rmats.py \
+            --b1 {input.input1} \
+            --b2 {input.input2} \
+            --gtf {params.gtf} \
+            -t paired \
+            --readLength 150 \
+            --nthread {threads} \
+            --od {params.out_dir} \
+            --tmp {params.temp_dir}
+            
+        touch {output}
+        """

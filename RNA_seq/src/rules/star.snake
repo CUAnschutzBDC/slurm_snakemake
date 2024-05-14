@@ -35,16 +35,13 @@ rule align:
         "{results}/{trim_method}_trim/{sample}.txt",
         "{results}/fastqc_{trim_method}_summary_trimmed.tsv"
     output:
-        output = "{results}/star_{trim_method}_trim/{sample}_finished.txt"
+        output = "{results}/star_{trim_method}_trim/{sample}_finished.txt",
+        strand = "{results}/infer_experiment_{trim_method}_trim/{sample}_experiment.txt"
     resources:
-        job_name="star",
-        mem_mb=60000,
-        time="10:00:00",
-        partition="amilan",
-        slurm=lambda wildcards: (
-            f"output={wildcards.results}/logs/star/star_{wildcards.sample}_{wildcards.trim_method}_trim.out "
-            f"error={wildcards.results}/logs/star/star_{wildcards.sample}_{wildcards.trim_method}_trim.err "
-            f"ntasks=1"
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/star/star_{wildcards.sample}_{wildcards.trim_method}_trim.out "
+            f"--error={wildcards.results}/logs/star/star_{wildcards.sample}_{wildcards.trim_method}_trim.err "
+            f"--ntasks=6"
         )
     params:
         genome        = GENOME,
@@ -54,7 +51,8 @@ rule align:
         fastqs        = _get_input,
         temp_file     = os.path.join(RESULTS2, "star_{trim_method}_trim/{sample}_Aligned.out.bam"),
         temp_location = os.path.join(RESULTS2, "star_{trim_method}_trim/{sample}"),
-        bam_output    = os.path.join(RESULTS2, "star_{trim_method}_trim/{sample}_Aligned.sortedByCoord.out.bam")
+        bam_output    = os.path.join(RESULTS2, "star_{trim_method}_trim/{sample}_Aligned.sortedByCoord.out.bam"),
+        bed = BED
     message:
         "Aligning reads for {wildcards.sample}"
     threads:
@@ -73,7 +71,11 @@ rule align:
             --outSAMtype BAM Unsorted \
             --outFileNamePrefix {params.output_prefix}
 
-        samtools sort {params.temp_file} -T {params.temp_location} > {params.bam_output}
+        # Find strandedness - moved her because it works better pre-sorting
+        infer_experiment.py -r {params.bed} -i {params.temp_file} > {output.strand}
+
+        #samtools sort {params.temp_file} -T {params.temp_location} > {params.bam_output}
+        samtools sort {params.temp_file} > {params.bam_output}
         rm {params.temp_file}
         touch {output.output}
         """
@@ -90,13 +92,9 @@ rule star_summary:
     output:
         "{results}/star_summary_{trim_method}_trim.tsv"
     resources:
-        job_name="star_summary",
-        mem_mb=4000,
-        time="00:30:00",
-        partition="amilan",
-        slurm=lambda wildcards: (
-            f"output={wildcards.results}/logs/star/star_summary_{wildcards.trim_method}_trim.out "
-            f"error={wildcards.results}/logs/star/star_summary_{wildcards.trim_method}_trim.err"
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/star/star_summary_{wildcards.trim_method}_trim.out "
+            f"--error={wildcards.results}/logs/star/star_summary_{wildcards.trim_method}_trim.err"
         )
     params:
         input_files = expand(

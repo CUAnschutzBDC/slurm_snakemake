@@ -2,20 +2,20 @@
 
 #SBATCH --job-name=snakemake
 #SBATCH --ntasks=1
-#SBATCH --time=23:50:00
+#SBATCH --time=1-00:00:00
 #SBATCH --mem=1gb
 #SBATCH --output=logs/snakemake_%J.out
 #SBATCH --partition=amilan
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=kristen.wells-wrasman@cuanschutz.edu
 
 set -o nounset -o pipefail -o errexit -x
 
 mkdir -p logs
 module load anaconda
-conda activate snakemake
+conda activate snakemake8
 
-#module load singularity/3.7.4
-
-profile="slurm_profiles/slurm_profile_singularity"
+#export APPTAINER_BIND="/scratch/alpine:/scratch/alpine,/pl/active/Anschutz_BDC:/pl/active/Anschutz_BDC"
 
 # Run snakemake pipeline
 snakemake \
@@ -24,7 +24,4 @@ snakemake \
     --jobs 12 \
     --latency-wait 60 \
     --rerun-incomplete \
-    --profile $profile \
-    --use-singularity \
-    --singularity-args "--bind /scratch/alpine/$USER --bind /pl/active/Anschutz_BDC --bind /tmp:/tmp"
-    
+    --workflow-profile profiles/default 

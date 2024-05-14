@@ -9,6 +9,8 @@ import os
 import re
 import pandas as pd
 
+# Set apptainer bindings NOT A PERMANENT SOLUTION
+os.environ["APPTAINER_BIND"] = "/scratch/alpine:/scratch/alpine,/pl/active/Anschutz_BDC:/pl/active/Anschutz_BDC,/tmp:/tmp"
 
 # Parameters from config.yaml
 SCRATCH_DIR    = config["SCRATCH_DIR"]
@@ -23,7 +25,12 @@ RESULTS           = config["RESULTS"]
 ADAPTORS          = config["ADAPTORS"]
 TRIM_METHOD       = config["TRIM_METHOD"]
 PROJECT           = config["PROJECT"]
+FASTQ_SCREEN_DATA = config["FASTQ_SCREEN_DATA"]
+RMATS_INFO        = config["RMATS_INFO"]
 GENERAL_CONTAINER = config["GENERAL_CONTAINER"]
+FASTQ_SCREEN      = config["FASTQ_SCREEN"]
+R_CONTAINER       = config["R_CONTAINER"]
+
 
 # Pull out sample names and fastq files
 SAMPLE_LIST = pd.read_table(config["SAMPLE_TABLE"]).set_index("sample", drop = False)
@@ -51,7 +58,8 @@ def _check_path(path):
         sys.exit("ERROR: " + path + " does not exist.")
 
 # Make the desired path in scratch
-user_variable = os.environ.get('USER')
+#user_variable = os.environ.get('USER')
+user_variable = "kwellswrasman@xsede.org"
 scratch_dir = os.path.join(SCRATCH_DIR, user_variable)
 current_dir = os.getcwd()
 rel_path_to_home = os.path.relpath(current_dir, start=BASE_PATH)
@@ -81,6 +89,11 @@ rule all:
             "{results}/fastqc_pre_trim_summary_untrimmed.tsv",
             results = RESULTS
             ),
+        # Run fastq screen
+        expand(
+            "{results}/fastq_screen/fastq_screen_barplot.pdf",
+            results = RESULTS
+        ),
         # Output of adaptor trimming
         expand(
             "{results}/{trim_method}_trim/{sample}.txt",
@@ -101,10 +114,28 @@ rule all:
             "{results}/{project}_countTable_{trim_method}_trim.txt",
             results = RESULTS, project = PROJECT,
             trim_method = TRIM_METHOD
-            )
+            ),
+
+        # Run rmats
+        expand(
+            "{results}/rmats_{trim_method}_trim/group1_input.txt",
+            results = RESULTS, trim_method = TRIM_METHOD
+        ),
+        expand(
+            "{results}/rmats_{trim_method}_trim/rmats_done.txt",
+            results = RESULTS, trim_method = TRIM_METHOD
+        ),
+        expand(
+          "{results}/{project}_quality_{trim_method}_trim.html",
+          results = RESULTS, project = PROJECT,
+          trim_method = TRIM_METHOD
+        )
 
 # Snakes to run
 include: "src/rules/fastqc.snake"
 include: "src/rules/trimming.snake"
 include: "src/rules/star.snake"
 include: "src/rules/featurecounts.snake"
+include: "src/rules/run_rmats.snake"
+include: "src/rules/fastq_screen.snake"
+include: "src/rules/qc_plots.snake"

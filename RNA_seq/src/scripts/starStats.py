@@ -1,5 +1,6 @@
 from collections import defaultdict
 import re
+import os
 
 file_list = snakemake.params["input_files"]
 output_file = snakemake.output[0]
@@ -13,7 +14,7 @@ sample_list = list()
 file_path = results + "/star" + "_" + trim_method + "_trim/"
 
 for i in file_list:
-	sample_name = re.sub(rf'{file_path}', '', i)
+	sample_name = os.path.split(i)[-1]
 	sample_name = re.sub(r'_Log\.final\.out', '', sample_name)
 	sample_list.append(sample_name)
 	with open(i, "r") as countFile:

@@ -1,5 +1,5 @@
 ---
-title: "Nkx2.2 timecourse"
+title: "RNA-seq QC"
 author: "Kristen Wells"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
@@ -15,24 +15,15 @@ params:
   genome: "GRCm38"
   DE_alpha: 0.05
   DE_lfc: 1
-  counts: "results/nkx2.2_timecourse_countTable_cutadapt_trim.txt"
+  counts: "results/human_cytokine_countTable_cutadapt_trim.txt"
   fastqc_one: "results/fastqc_pre_trim_summary_untrimmed.tsv"
   fastqc_two: "results/fastqc_cutadapt_summary_trimmed.tsv"
   star_stats: "results/star_summary_cutadapt_trim.tsv"
-  output_dir: "results/R_analysis_check"
+  output_dir: "results/R_analysis"
   sample_info: "files/sample_info.csv"
   sample_column: "genotype"
-  comparisons:
-    value: 
-      - ["scramble", "etv1_kd"]
-      - ["scramble", "klf4_kd"]
-  genes:
-    value:
-      - "Etv1"
-      - "Klf4"
-      - "Arx"
-      - "Nkx6-1"
-      - "Nkx2-2"
+  fastq_screen: "results/fastq_screen/fastq_screen_info.csv"
+  snakemake: FALSE
 ---
 
 ```{r "Load packages and set options", include = F}
@@ -40,18 +31,10 @@ library(knitr)
 library(cowplot)
 library(tidyverse)
 library(Matrix)
-library(pheatmap)
-library(ggrepel)
-library(gprofiler2)
 library(viridis)
 library(RColorBrewer)
-library(ashr)
-library(apeglm)
 library(openxlsx)
 library(DESeq2)
-library(pathview)
-library(KEGGREST)
-library(org.Mm.eg.db)
 library(LaCroixColoR)
 library(here)
 library(MetBrewer)
@@ -82,31 +65,73 @@ fastqc_colors <- c("#e31a1c", "#238443", "#ec7014")
 
 star_colors <- c("#737373", "#8c6bb1", "#ec7014",
                  "#e31a1c", "#238443", "#225ea8")
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 ```
 
+```{r load-data}
+if(params$snakemake){
+ # Read in out dir
+  output_directory <- params$output_dir
+  
+  # Read in count table
+  count_table <- read.table(params$counts, sep = "\t",
+                            row.names = 1, header = T)
+  
+  # Read in the sample table
+  sample_table <- read.table(params$sample_info, sep = ",",
+                             header = T)
+  
+  # Read in star stats
+  star_stats <- read.table(params$star_stats, sep = "\t", row.names = 1,
+                           header = T)
+  
+  # Load in fastqc results
+  fastqc_summary_one <- read.table(params$fastqc_one, sep = "\t")
+  
+  # Load in fastqc results
+  fastqc_summary_two <- read.table(params$fastqc_two, sep = "\t")
+
+  fastq_screen_res <- read.csv(params$fastq_screen)
+
+  
+
+} else {
+  # Read in out dir
+  output_directory <- here(params$output_dir)
+  
+  # Read in count table
+  count_table <- read.table(here(params$counts), sep = "\t",
+                            row.names = 1, header = T)
+  
+  # Read in the sample table
+  sample_table <- read.table(here(params$sample_info), sep = ",",
+                             header = T)
+  
+  # Read in star stats
+  star_stats <- read.table(here(params$star_stats), sep = "\t", row.names = 1,
+                           header = T)
+  
+  # Load in fastqc results
+  fastqc_summary_one <- read.table(here(params$fastqc_one), sep = "\t")
+  
+  # Load in fastqc results
+  fastqc_summary_two <- read.table(here(params$fastqc_two), sep = "\t")
+
+  fastq_screen_res <- read.csv(here(params$fastq_screen))
+
+}
+```
 
 ## Background
 This document goes through the analysis of the Chd4 KO at week 3 vs the control
 
 ```{r, "Load in and set up data"}
-# Setup output dir
-output_directory <- here(params$output_dir)
-
-# Load in the files
-###############
-# Count table #
-###############
-# Read in the count table
-count_table <- read.table(here(params$counts), sep = "\t",
-                          row.names = 1, header = T)
+# Fix up files
 
 ################
 # Sample table #
 ################
-
-# Read in the sample table
-sample_table <- read.table(here(params$sample_info), sep = ",",
-                           header = T)
 
 rownames(sample_table) <- sample_table$Sample_name
 
@@ -116,10 +141,6 @@ count_table <- count_table[ , rownames(sample_table)]
 ########
 # Star #
 ########
-
-# Read in star stats
-star_stats <- read.table(here(params$star_stats), sep = "\t", row.names = 1,
-                         header = T)
 
 # Filter for mapping % and total read counts
 star_stats <- star_stats[grepl(
@@ -171,9 +192,6 @@ read_counts <- star_stats_long %>%
 # FastQC #
 ##########
 
-# Load in fastqc results
-fastqc_summary_one <- read.table(here(params$fastqc_one), sep = "\t")
-
 # Change the colnames
 colnames(fastqc_summary_one) <- c("Result", "Test", "Sample")
 
@@ -182,9 +200,6 @@ fastqc_summary_one$Sample <- sub("_S[0-9]*_L[0-9]*_", "",
                                  fastqc_summary_one$Sample)
 fastqc_summary_one$Sample <- sub("_001.fastq.gz", "",
                                  fastqc_summary_one$Sample)
-
-# Load in fastqc results
-fastqc_summary_two <- read.table(here(params$fastqc_two), sep = "\t")
 
 # Change the colnames
 colnames(fastqc_summary_two) <- c("Result", "Test", "Sample")
@@ -207,18 +222,24 @@ names(sample_colors) <- rownames(sample_table)
 
 
 # Cassatt 1
-day_colors <- met.brewer(name="Cassatt1", n=4, type="discrete") %>%
+treatment_colors <- met.brewer(name="Cassatt1",
+                               length(unique(sample_table$treatment)),
+                               type="continuous") %>%
   as.character()
 
-names(day_colors) <- unique(sample_table$day)
+names(treatment_colors) <- unique(sample_table$treatment)
 
 # Egypt for mutant/control
-group_colors <- met.brewer(name = "Egypt", n = 3, type = "discrete") %>%
+group_colors <- met.brewer(name = "Egypt", 
+                           n = length(unique(sample_table$group)),
+                           type = "continuous") %>%
   as.character()
 names(group_colors) <- unique(sample_table$group)
 
 # Derain for batch 1
-genotype_colors <- met.brewer(name = "Derain", n = 2, type = "discrete")
+genotype_colors <- met.brewer(name = "Derain",
+                              n = length(unique(sample_table$genotype)),
+                              type = "continuous")
 names(genotype_colors) <- unique(sample_table$genotype)
 
 ```
@@ -323,20 +344,46 @@ star_plot
 
 ```
 
+## Fastq screen
+I also ran the alignment against many different genomes to ensure any unmapped reads could be mapped to any type of contamination. I did this using `fastq_screen`
+
+```{r}
+
+# Make the plotting levels better?
+fastq_screen_res$Genome <- factor(fastq_screen_res$Genome,
+                                  levels = unique(fastq_screen_res$Genome))
+
+# Pick some colors
+colors <- grDevices::colorRampPalette(
+  RColorBrewer::brewer.pal(name = "Set1", n = 9))(length(levels(fastq_screen_res$Genome)))
+
+names(colors) <- levels(fastq_screen_res$Genome)
+
+# Make a barplot
+barplot <- ggplot2::ggplot(fastq_screen_res, ggplot2::aes(x = sample,
+                                                          y = percent, 
+                                                          fill = Genome)) +
+	ggplot2::geom_bar(stat = "identity", position = "stack") +
+	ggplot2::coord_flip() +
+	ggplot2::scale_fill_manual(values = colors)
+
+print(barplot)
+
+```
 
 ## PCA
 Principal component analysis was performed to assess similarities between samples. Here I've made many plots to look at different technical effects in your data. 
 
 A) PCA colored by sample
 B) PCA colored by genotype
-C) PCA colored by day
+C) PCA colored by treatment
 
-```{r "Run DESeq2 and create PCA plot", fig.width = 15, fig.height = 8}
+```{r "Run DESeq2 and create PCA plot", fig.width = 10, fig.height = 8}
 # This makes a DESeq2 object where the count data is our count matrix and the colData is our sample data. I am currently making the design based on "group" but we can change this if necessary
 sample_table$Sample_name <- factor(sample_table$Sample_name)
-sample_table$genotype <- factor(sample_table$genotype,
-                                levels = c("delta2_2", "Luc7"))
-sample_table$day <- factor(sample_table$day)
+sample_table$genotype <- factor(sample_table$genotype)
+sample_table$treatment <- factor(sample_table$treatment)
+sample_table$group <- factor(sample_table$group)
 
 dds <- DESeqDataSetFromMatrix(countData = count_table,
                               colData = sample_table,
@@ -352,7 +399,7 @@ vsd <- vst(dds, blind = F)
 
 pc_1 <- plot_pca(vsd, group_by = "Sample_name", color_palette = sample_colors)
 pc_2 <- plot_pca(vsd, group_by = "genotype", color_palette = genotype_colors)
-pc_3 <- plot_pca(vsd, group_by = "day", color_palette = day_colors)
+pc_3 <- plot_pca(vsd, group_by = "treatment", color_palette = treatment_colors)
 pc_4 <- plot_pca(vsd, group_by = "group", color_palette = group_colors)
 
 

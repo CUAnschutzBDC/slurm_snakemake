@@ -1,0 +1,55 @@
+executor: slurm
+
+use-apptainer: True
+#apptainer-args: "\"--bind /scratch/alpine --bind /pl/active/AnschutzBDC\""
+
+default-resources:
+    slurm_partition: "amilan"
+    slurm_account:   "amc-general"
+
+set-resources:
+    make_genomes:
+        runtime: 120
+        mem: "4GB"
+    fastq_screen:
+        runtime: 720
+        mem: "4GB"
+    fastqc:
+        runtime: 60
+        mem: "4GB"
+    fastqc_trim:
+        runtime: 60
+        mem: "4GB"
+    fastqc_summary:
+        runtime: 10
+        mem: "4GB"
+    bbduk:
+        runtime: 180
+        mem: "4GB"
+    cutadapt:
+        runtime: 180
+        mem: "4GB"
+    no_trim:
+        runtime: 5
+        mem: "1GB"
+    align:
+        runtime: 360 
+        mem: "60GB"
+    star_summary:
+        runtime: 10
+        mem: "1GB"
+    find_strandedness:
+        runtime: 10
+        mem: "1GB"
+    count:
+        runtime: 30
+        mem_mb: "4GB"
+    count_table:
+        runtime: 10
+        mem: "1GB"
+    create_input:
+        runtime: 10
+        mem: "1GB"
+    run_rmats:
+        runtime: 360
+        mem: "20GB"

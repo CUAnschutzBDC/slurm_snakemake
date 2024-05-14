@@ -31,13 +31,9 @@ rule bbduk:
     output:
         "{results}/bbduk_trim/{sample}.txt"
     resources:
-        job_name="bbduk",
-        mem_mb=4000,
-        time="02:00:00",
-        partition="amilan",
-        slurm=lambda wildcards: (
-            f"output={wildcards.results}/logs/trimming/bbduk_{wildcards.sample}.out "
-            f"error={wildcards.results}/logs/trimming/bbduk_{wildcards.sample}.err"
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/trimming/bbduk_{wildcards.sample}.out "
+            f"--error={wildcards.results}/logs/trimming/bbduk_{wildcards.sample}.err"
         )
     params:
         ref       = ADAPTORS,
@@ -80,13 +76,9 @@ rule cutadapt:
     output:
         "{results}/cutadapt_trim/{sample}.txt"
     resources:
-        job_name="cutadapt",
-        mem_mb=4000,
-        time="02:00:00",
-        partition="amilan",
-        slurm=lambda wildcards: (
-            f"output={wildcards.results}/logs/trimming/cutadapt_{wildcards.sample}.out "
-            f"error={wildcards.results}/logs/trimming/cutadapt_{wildcards.sample}.err"
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/trimming/cutadapt_{wildcards.sample}.out "
+            f"--error={wildcards.results}/logs/trimming/cutadapt_{wildcards.sample}.err"
         )
     params:
         settings  = CMD_PARAMS["cutadapt"],
@@ -128,13 +120,9 @@ rule no_trim:
     output:
         "{results}/no_trim/{sample}.txt"
     resources:
-        job_name="no_trim",
-        mem_mb=1000,
-        time="00:10:00",
-        partition="amilan",
-        slurm=lambda wildcards: (
-            f"output={wildcards.results}/logs/trimming/no_{wildcards.sample}.out "
-            f"error={wildcards.results}/logs/trimming/no_{wildcards.sample}.err"
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/trimming/no_{wildcards.sample}.out "
+            f"--error={wildcards.results}/logs/trimming/no_{wildcards.sample}.err"
         )
     run:
         with open(output[0], "w") as out:

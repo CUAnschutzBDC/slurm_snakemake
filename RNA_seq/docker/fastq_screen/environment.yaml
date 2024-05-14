@@ -8,12 +8,7 @@ channels:
 dependencies:
   - pip=24.0
   - pysam=0.22.1
-  - star=2.7.11b
-  - cutadapt=4.8
-  - bbtools=37.62
-  - fastqc=0.12.1
+  - bowtie2=2.5.3
   - samtools=1.20
-  - subread=2.0.6
   - bedtools=2.31.1
-  - deeptools=3.5.5
-  - rseqc=5.0.3
+  - fastq-screen=0.13.0

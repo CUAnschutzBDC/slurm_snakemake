@@ -1,0 +1,23 @@
+rule qc_plots:
+    input:
+        fastq_screen = "{results}/fastq_screen/fastq_screen_done.txt",
+        star         = "{results}/star_summary_{trim_method}_trim.tsv",
+        count_table  = "{results}/{project}_countTable_{trim_method}_trim.txt",
+        fastqc       = "{results}/fastqc_pre_trim_summary_untrimmed.tsv",
+        fastqc2      = "{results}/fastqc_{trim_method}_summary_trimmed.tsv"
+    output:
+        completed_file = "{results}/{project}_quality_{trim_method}_trim.html"
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/qc_plots_{wildcards.project}/qc_plots_{wildcards.trim_method}.out "
+            f"--error={wildcards.results}/logs/qc_plots_{wildcards.project}/qc_plots_{wildcards.trim_method}.err"
+        )
+    singularity:
+       R_CONTAINER
+    shell:
+        """
+        Rscript --vanilla src/scripts/qc_plots.R \
+          {wildcards.results} \
+          {wildcards.project} \
+          {output}
+        """
