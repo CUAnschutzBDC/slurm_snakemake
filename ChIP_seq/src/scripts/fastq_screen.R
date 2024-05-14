@@ -58,6 +58,8 @@ colors <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(name = "Set1", n 
 
 names(colors) <- levels(all_results$Genome)
 
+write.csv(all_results, file.path(save_dir, "fastq_screen_info.csv"))
+
 # Make a barplot
 barplot <- ggplot2::ggplot(all_results, ggplot2::aes(x = sample, y = percent, fill = Genome)) +
 	ggplot2::geom_bar(stat = "identity", position = "stack") +

@@ -78,7 +78,7 @@ FASTQ_SCREEN_DATA:
 
 ##### Containers ######
 GENERAL_CONTAINER:
-  "docker/general_docker/chip.v1.sif"
+  "docker/general_docker/chip.v2.sif"
 
 
 # The container for running picard tools

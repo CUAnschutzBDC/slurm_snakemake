@@ -1,0 +1,301 @@
+---
+title: "Elliott NKX2.2 chip"
+author: "Kristen Wells"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    highlight: "tango"
+    df_print: "paged"
+    code_folding: "hide"
+    self_contained: true
+params:
+  project: "NKX_chip"
+  sample_table: "files/samples.tsv"
+  mapping_res: "results/mapping_quality.csv"
+  fastqc1: "results/fastqc_pre_trim_summary_untrimmed.tsv"
+  fastqc2: "results/fastqc_cutadapt_summary_trimmed.tsv"
+  duplicates: "results/all_quality_res.csv"
+  fastq_screen: "results/fastq_screen/fastq_screen_info.csv"
+  snakemake: FALSE
+  
+---
+```{r, setup, include=FALSE}
+# Set default chunk options
+knitr::opts_chunk$set(
+  message = F, 
+  warning = F,
+  comment = ""
+)
+```
+
+```{r, packages}
+library(tidyverse)
+library(here)
+```
+
+```{r}
+# Set theme
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+
+# Read in data
+if(params$snakemake){
+  samples <- read.table(params$sample_table, header = TRUE)
+  mapping_res <- read.csv(params$mapping_res, row.name = 1)
+
+  # Duplicates 
+  duplicate_res <- read.csv(params$duplicates)
+  
+  # Load in fastqc results
+  fastqc_summary_one <- read.table(params$fastqc1, sep = "\t")
+  fastqc_summary_two <- read.table(params$fastqc2, sep = "\t")
+  
+  fastq_screen_res <- read.csv(params$fastq_screen)
+} else {
+  samples <- read.table(here(params$sample_table), header = TRUE)
+  mapping_res <- read.csv(here(params$mapping_res), row.names = 1)
+  
+  # Duplicates 
+  duplicate_res <- read.csv(here(params$duplicates))
+  # Load in fastqc results
+  fastqc_summary_one <- read.table(here(params$fastqc1), sep = "\t")
+  fastqc_summary_two <- read.table(here(params$fastqc2), sep = "\t")
+  
+  fastq_screen_res <- read.csv(here(params$fastq_screen))
+}
+
+replicate_colors <- MetBrewer::met.brewer(palette_name = "Greek",
+                                          n = length(unique(samples$replicate)))
+
+names(replicate_colors) <- unique(samples$replicate)
+
+all_sample_color <- MetBrewer::met.brewer(palette_name = "Monet",
+                                          n = length(unique(samples$sample)))
+names(all_sample_color) <- unique(samples$sample)
+
+# Fastqc colors
+fastqc_colors <- c("#e31a1c", "#238443", "#ec7014")
+```
+
+
+
+This document goes through quality checks for the cut and run experiment of Klf4 and Etv1 for Elliott Brooks
+
+# Fastqc {.tabset}
+I first ran fastqc before and after trimming adapters to get a sense of the library quality
+
+```{r}
+# Change the colnames
+colnames(fastqc_summary_one) <- c("Result", "Test", "Sample")
+
+# Update sample names
+fastqc_summary_one$Sample <- sub("_S[0-9]*_L[0-9]*_", "",
+                                 fastqc_summary_one$Sample)
+fastqc_summary_one$Sample <- sub("_001.fastq.gz", "",
+                                 fastqc_summary_one$Sample)
+# Change the colnames
+colnames(fastqc_summary_two) <- c("Result", "Test", "Sample")
+
+# Update sample names
+fastqc_summary_two$Sample <- sub("_S[0-9]*_L[0-9]*_", "",
+                                 fastqc_summary_two$Sample)
+fastqc_summary_two$Sample <- sub("_trimmed.fastq.gz", "",
+                                 fastqc_summary_two$Sample)
+```
+
+## Before trimming
+Before trimming we see a few failures
+
+1. Per base sequence content - this looks strange because starting at around 50 bp the majority of reads are "G". This seems reasonable to me if we are expecting fragments that are very short. Anything that was sequenced beyond the end of the fragment will come up as "G"
+2. Adapter content fails both for polyG and for the illumina adapter. This is expected because I haven't trimmed yet and we saw those adapter peaks.
+
+```{r "Create fastqc summary", fig.width = 8.5, fig.height = 3}
+fastqc_plot <- ggplot(data = fastqc_summary_one,
+                      mapping = aes(x = Sample,
+                                    y = Test,
+                                    fill = Result)) +
+  geom_tile(color = "white", size = 0.5) +
+  scale_fill_manual(values = fastqc_colors) +
+  theme_classic() +
+  theme(
+    legend.title = element_blank(),
+    legend.text  = element_text(size = 8, color = "black"),
+    axis.title   = element_blank(),
+    axis.text    = element_text(size = 8, color = "black"),
+    axis.text.x  = element_text(angle = 90, hjust = 1, vjust = 0.5)
+  )
+
+fastqc_plot
+```
+
+## After trimming
+
+Things improve a lot after trimming. The average quality goes from 30 to 36, the sequence content remains not perfect, but it is better. Note also that the adapters are fully gone indicating that the trimming worked.
+
+A few issues here 
+
+1. The sequence length distribution always fails after trimming because the sequences are no longer the exact 151 bp off the sequencer. Here we see that the distribution peaks around 50bp which is what I would expect from the polyG sequence I described above.
+
+```{r "Create fastqc summary2", fig.width = 8.5, fig.height = 3}
+fastqc_plot <- ggplot(data = fastqc_summary_two,
+                      mapping = aes(x = Sample,
+                                    y = Test,
+                                    fill = Result)) +
+  geom_tile(color = "white", size = 0.5) +
+  scale_fill_manual(values = fastqc_colors) +
+  theme_classic() +
+  theme(
+    legend.title = element_blank(),
+    legend.text  = element_text(size = 8, color = "black"),
+    axis.title   = element_blank(),
+    axis.text    = element_text(size = 8, color = "black"),
+    axis.text.x  = element_text(angle = 90, hjust = 1, vjust = 0.5)
+  )
+
+fastqc_plot
+```
+
+# Read quality checks {.tabset}
+Below are various quality checks including alignment, percent of reads mapping to the mitochondiral genome and percent duplication
+
+## Alignment
+Below is the alignment rate metrics output by `bowtie2`
+
+```{r}
+
+mapping_res$alignment_type <- factor(mapping_res$alignment_type,
+                                     levels = c("no_alignment_percent", 
+                                                "non_concordant_alignment",
+                                                "multi_alignment_percent",
+                                                "one_alignment_percent"))
+
+
+
+
+color_palette <- RColorBrewer::brewer.pal(n = 4, name = "Set1") 
+names(color_palette) <- c("no_alignment_percent", "non_concordant_alignment",
+                          "one_alignment_percent", "multi_alignment_percent")
+
+read_counts <- mapping_res %>%
+  dplyr::select(total_reads, sample) %>%
+  dplyr::distinct() %>%
+  dplyr::mutate(label_reads = round(total_reads / 1000000)) %>%
+  dplyr::mutate(label_reads = str_c(label_reads, " million")) %>%
+  dplyr::distinct()
+
+
+ggplot2::ggplot(mapping_res, ggplot2::aes(x = sample, y = read_percent,
+                                         fill = alignment_type)) +
+  ggplot2::geom_bar(stat = "identity", position = "stack") +
+  ggplot2::scale_fill_manual(values = color_palette) +
+  geom_text(
+    data = read_counts, 
+    aes(sample, 50, label = label_reads),
+    show.legend = F,
+    inherit.aes = F,
+    color = "white", 
+    angle = 90
+  ) +
+  ggplot2::theme(axis.text.x  = element_text(angle = 90,
+                                             hjust = 1, vjust = 0.5))
+ 
+```
+
+## Fastq screen
+I also ran the alignment against many different genomes to ensure any unmapped reads could be mapped to any type of contamination. I did this using `fastq_screen`
+
+```{r}
+
+# Make the plotting levels better?
+fastq_screen_res$Genome <- factor(fastq_screen_res$Genome,
+                                  levels = unique(fastq_screen_res$Genome))
+
+# Pick some colors
+colors <- grDevices::colorRampPalette(
+  RColorBrewer::brewer.pal(name = "Set1", n = 9))(length(levels(fastq_screen_res$Genome)))
+
+names(colors) <- levels(fastq_screen_res$Genome)
+
+# Make a barplot
+barplot <- ggplot2::ggplot(fastq_screen_res, ggplot2::aes(x = sample,
+                                                          y = percent, 
+                                                          fill = Genome)) +
+	ggplot2::geom_bar(stat = "identity", position = "stack") +
+	ggplot2::coord_flip() +
+	ggplot2::scale_fill_manual(values = colors)
+
+print(barplot)
+
+```
+
+## Duplication and mito
+A) Percent of reads that passed alignment (were concordantly aligned 1 or more times). For more inforamtion on other alignment types see `alignement rate` and `fastq screen` tabs.
+B) Percent of reads that passed alignment and mapped to the mitochondrial genome
+C) Percent of reads that passed alignment and were duplicates
+D) Total number of reads (in millions) after all filtering steps (aligned concordantly, not mitochondiral, not duplicates). *Note, duplicate reads were removed, leaving the highest scoring read that is part of each duplicate family*
+
+```{r}
+# Plot showing duplication
+# Plot showing percent mito
+# Plot showing total remaining reads
+
+total_alignment <- mapping_res %>%
+  dplyr::filter(alignment_type %in% c("one_alignment_percent",
+                                      "multi_alignment_percent")) %>%
+  dplyr::group_by(sample) %>% 
+  dplyr::mutate(aligned = sum(read_percent)) %>%
+  dplyr::select(aligned, sample) %>%
+  dplyr::distinct()
+
+plot1 <- ggplot2::ggplot(total_alignment,
+                         ggplot2::aes(x = sample, y = aligned,
+                                      fill = sample)) +
+  ggplot2::geom_bar(stat = "identity") +
+  ggplot2::scale_fill_manual(values = all_sample_color) +
+  ggplot2::ylab("% aligned") +
+  ggplot2::ggtitle("Percent concordantly aligned") +
+  ggplot2::ylim(0, 100) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, 
+                                                     hjust=1))
+
+  
+
+plot2 <- ggplot2::ggplot(duplicate_res, 
+                         ggplot2::aes(y = percent_mito * 100, x = sample,
+                                      fill = sample)) +
+  ggplot2::geom_bar(stat = "identity") +
+  ggplot2::scale_fill_manual(values = all_sample_color) +
+  ggplot2::ylab("% mito") +
+  ggplot2::ggtitle("Percent mitochondria") +
+  ggplot2::ylim(0, 20) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, 
+                                                     hjust=1))
+
+plot3 <- ggplot2::ggplot(duplicate_res, 
+                         ggplot2::aes(y = PERCENT_DUPLICATION * 100, x = sample,
+                                      fill = sample)) +
+  ggplot2::geom_bar(stat = "identity") +
+  ggplot2::scale_fill_manual(values = all_sample_color) +
+  ggplot2::ylab("% dup") +
+  ggplot2::ggtitle("Percent duplication") +
+  ggplot2::ylim(0, 100) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, 
+                                                     hjust=1))
+
+plot4 <- ggplot2::ggplot(duplicate_res, 
+                         ggplot2::aes(y = final_reads / 2 / 1000000, x = sample,
+                                      fill = sample)) +
+  ggplot2::geom_bar(stat = "identity") +
+  ggplot2::scale_fill_manual(values = all_sample_color) +
+  ggplot2::ylab("Million reads") +
+  ggplot2::ggtitle("Total reads (million) after all filters")  +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, 
+                                                     hjust=1))
+
+
+cowplot::plot_grid(plot1, plot2, plot3, plot4, nrow = 2, ncol = 2,
+                   labels = c("A", "B", "C", "D"))
+
+```

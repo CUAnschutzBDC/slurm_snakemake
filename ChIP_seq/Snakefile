@@ -116,6 +116,16 @@ rule all:
             "{results}/bowtie2_{trim_method}_trim/{sample}_remove_dup.bam",
             results = RESULTS, trim_method = TRIM_METHOD, sample = SAMPLES
             ),
+        # bowtie stats
+        expand(
+            "{results}/bowtie2_{trim_method}_trim/bowtie_stats_finished.txt",
+            results = RESULTS, trim_method = TRIM_METHOD
+        ),
+        # dup stats
+        expand(
+            "{results}/bowtie2_{trim_method}_trim/dup_stats.txt",
+            results = RESULTS, trim_method = TRIM_METHOD
+        ),
         # Call peaks
         expand(
             "{results}/macs2_{trim_method}_trim/{sample}_peaks.narrowPeak",
@@ -126,6 +136,11 @@ rule all:
             "{results}/quality_sample_sheet_{trim_method}.csv",
             results = RESULTS, trim_method = TRIM_METHOD    
             ),
+        # Make quality plots
+        expand(
+          "{results}/quality_{trim_method}_trim.html",
+          results = RESULTS, trim_method = TRIM_METHOD
+        )
         # Make bigwigs
         # expand(
         #    "{results}/bigwig_{trim_method}_trim/{sample}_Aligned.bw",
@@ -141,3 +156,4 @@ include: "src/rules/macs2.snake"
 include: "src/rules/chip_quality.snake"
 include: "src/rules/make_bigwig.snake"
 include: "src/rules/fastq_screen.snake"
+include: "src/rules/qc_plots.snake"

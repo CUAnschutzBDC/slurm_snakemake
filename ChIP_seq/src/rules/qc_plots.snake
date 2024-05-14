@@ -1,0 +1,21 @@
+rule qc_plots:
+    input:
+        fastq_screen = "{results}/fastq_screen/fastq_screen_done.txt",
+        dup_stats    = "{results}/bowtie2_{trim_method}_trim/dup_stats.txt",
+        fastqc       = "{results}/fastqc_pre_trim_summary_untrimmed.tsv",
+        fastqc2      = "{results}/fastqc_{trim_method}_summary_trimmed.tsv"
+    output:
+        completed_file = "{results}/quality_{trim_method}_trim.html"
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/qc_plots/qc_plots_{wildcards.trim_method}.out "
+            f"--error={wildcards.results}/logs/qc_plots/qc_plots_{wildcards.trim_method}.err"
+        )
+    singularity:
+       R_CONTAINER
+    shell:
+        """
+        Rscript --vanilla src/scripts/quality_analysis.R \
+          {wildcards.results} \
+          {output}
+        """

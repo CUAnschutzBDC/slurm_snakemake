@@ -32,6 +32,9 @@ set-resources:
     align:
         runtime: 360 
         mem: "60GB"
+    aligment_stats:
+        runtime: 30
+        mem: "1GB"
     remove_mito:
         runtime: 120
         mem: "60GB"
@@ -41,6 +44,9 @@ set-resources:
     remove_duplicate_reads:
         runtime: 120
         mem: "60GB"
+    dup_stats:
+        runtime: 10
+        mem: "1GB"
     macs2:
         runtime: 180
         mem: "30GB"

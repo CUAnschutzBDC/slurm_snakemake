@@ -15,12 +15,10 @@ params:
   genome: "GRCm38"
   annotation: "mm10"
   chipqc_samples: "results/quality_sample_sheet_cutadapt.csv"
-  project: "RA_chip"
+  project: "NKX_chip"
   
 ---
 ```{r, setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "/Users/wellskr/Documents/Analysis/Lori_sussel/David_Lorberbaum/Sussel_RA_chip/")
-
 # Set default chunk options
 knitr::opts_chunk$set(
   message = F, 
@@ -32,11 +30,12 @@ knitr::opts_chunk$set(
 ```{r, packages}
 library(ChIPseeker)
 library(dplyr)
-library(TxDb.Mmusculus.UCSC.mm10.knownGene)
+#library(TxDb.Mmusculus.UCSC.mm10.knownGene)
+library(here)
 ```
 
 ```{r read-in-data}
-sample_sheet <- params$chipqc_samples
+sample_sheet <- here(params$chipqc_samples)
 
 annotation <- params$annotation
 
@@ -47,9 +46,9 @@ directory <- "results/R_analysis/images"
 # Read in data
 samples <- read.csv(sample_sheet)
 
-samples$bamReads <- paste0(getwd(), "/results", samples$bamReads)
-samples$bamControl <- paste0(getwd(), "/results", samples$bamControl)
-samples$Peaks <- paste0(getwd(), "/results", samples$Peaks)
+samples$bamReads <- here("results", samples$bamReads)
+samples$bamControl <- here("results", samples$bamControl)
+samples$Peaks <- here("results", samples$Peaks)
 #samples$ScoreCol <- 5
 #samples$LowerBetter <- FALSE
 
