@@ -1,10 +1,10 @@
 # Get base image
-FROM bioconductor/bioconductor_docker:RELEASE_3_16
+FROM bioconductor/bioconductor_docker:RELEASE_3_19
 
 # environment
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 ENV PATH $PATH:/opt/conda/bin
-ENV RENV_VERSION 0.16.0
+ENV RENV_VERSION=1.0.7
 
 # get conda installed
 RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
@@ -26,8 +26,8 @@ RUN /opt/conda/bin/conda config --add channels defaults && \
     conda clean -afy
 
 # Install R packages with renv
-RUN R -e "install.packages('remotes', repos = c(CRAN = 'https://cloud.r-project.org'))"
-RUN R -e "remotes::install_github('rstudio/renv@${RENV_VERSION}')"
+#RUN R -e "install.packages('remotes', repos = c(CRAN = 'https://cloud.r-project.org'))"
+RUN R -e "install.packages('renv', version = '${RENV_VERSION}')"
 
 
 WORKDIR /home/rstudio

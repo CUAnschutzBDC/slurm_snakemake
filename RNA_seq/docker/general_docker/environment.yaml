@@ -17,3 +17,4 @@ dependencies:
   - bedtools=2.31.1
   - deeptools=3.5.5
   - rseqc=5.0.3
+  - rmats=4.3.0
