@@ -1,0 +1,10 @@
+*raw_data/
+.*
+!.gitignore
+!.gitattributes
+results/*
+job_stats*
+*.tar
+*.sif
+logs
+.Rproj.user
