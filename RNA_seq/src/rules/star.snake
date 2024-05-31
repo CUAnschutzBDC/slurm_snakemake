@@ -40,8 +40,7 @@ rule align:
     resources:
         slurm_extra=lambda wildcards: (
             f"--output={wildcards.results}/logs/star/star_{wildcards.sample}_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/star/star_{wildcards.sample}_{wildcards.trim_method}_trim.err "
-            f"--ntasks=6"
+            f"--error={wildcards.results}/logs/star/star_{wildcards.sample}_{wildcards.trim_method}_trim.err"
         )
     params:
         genome        = GENOME,
@@ -53,17 +52,15 @@ rule align:
         temp_location = os.path.join(RESULTS2, "star_{trim_method}_trim/{sample}"),
         bam_output    = os.path.join(RESULTS2, "star_{trim_method}_trim/{sample}_Aligned.sortedByCoord.out.bam"),
         bed = BED
-    message:
-        "Aligning reads for {wildcards.sample}"
-    threads:
-        6
+    # message:
+    #     "Aligning reads for {wildcards.sample}"
     singularity:
        GENERAL_CONTAINER
     shell:  
         """
         mkdir -p {params.out_dir}
         STAR \
-            --runThreadN {threads} \
+            --runThreadN 10 \
             --genomeDir {params.genome} \
             --sjdbGTFfile {params.gtf} \
             --readFilesIn {params.fastqs} \
@@ -75,7 +72,7 @@ rule align:
         infer_experiment.py -r {params.bed} -i {params.temp_file} > {output.strand}
 
         #samtools sort {params.temp_file} -T {params.temp_location} > {params.bam_output}
-        samtools sort {params.temp_file} > {params.bam_output}
+        samtools sort -@ 10 {params.temp_file} > {params.bam_output}
         rm {params.temp_file}
         touch {output.output}
         """

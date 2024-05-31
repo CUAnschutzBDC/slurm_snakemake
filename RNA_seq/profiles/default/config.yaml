@@ -13,7 +13,7 @@ set-resources:
         mem: "4GB"
     fastq_screen:
         runtime: 720
-        mem: "4GB"
+        mem: "1GB"
     fastqc:
         runtime: 60
         mem: "4GB"
@@ -22,7 +22,7 @@ set-resources:
         mem: "4GB"
     fastqc_summary:
         runtime: 10
-        mem: "4GB"
+        mem: "1GB"
     bbduk:
         runtime: 180
         mem: "4GB"
@@ -34,7 +34,10 @@ set-resources:
         mem: "1GB"
     align:
         runtime: 360 
-        mem: "60GB"
+        mem: "40GB"
+        tasks: 1
+        cpus_per_task: 10
+        nodes: 1
     star_summary:
         runtime: 10
         mem: "1GB"
@@ -43,7 +46,7 @@ set-resources:
         mem: "1GB"
     count:
         runtime: 30
-        mem_mb: "4GB"
+        mem_mb: "1GB"
     count_table:
         runtime: 10
         mem: "1GB"

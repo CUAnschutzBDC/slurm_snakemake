@@ -135,6 +135,10 @@ This document goes through the analysis of the Chd4 KO at week 3 vs the control
 
 rownames(sample_table) <- sample_table$Sample_name
 
+# Remove any samples that weren't in the count table
+sample_table <- sample_table[(rownames(sample_table) %in%
+                                 colnames(count_table)),]
+
 # Ensure the count table and sample table are in the same order
 count_table <- count_table[ , rownames(sample_table)]
 
@@ -222,7 +226,7 @@ names(sample_colors) <- rownames(sample_table)
 
 
 # Cassatt 1
-treatment_colors <- met.brewer(name="Cassatt1",
+treatment_colors <- met.brewer(palette_name="Cassatt1",
                                length(unique(sample_table$treatment)),
                                type="continuous") %>%
   as.character()
@@ -230,14 +234,14 @@ treatment_colors <- met.brewer(name="Cassatt1",
 names(treatment_colors) <- unique(sample_table$treatment)
 
 # Egypt for mutant/control
-group_colors <- met.brewer(name = "Egypt", 
+group_colors <- met.brewer(palette_name = "Egypt", 
                            n = length(unique(sample_table$group)),
                            type = "continuous") %>%
   as.character()
 names(group_colors) <- unique(sample_table$group)
 
 # Derain for batch 1
-genotype_colors <- met.brewer(name = "Derain",
+genotype_colors <- met.brewer(palette_name = "Derain",
                               n = length(unique(sample_table$genotype)),
                               type = "continuous")
 names(genotype_colors) <- unique(sample_table$genotype)
