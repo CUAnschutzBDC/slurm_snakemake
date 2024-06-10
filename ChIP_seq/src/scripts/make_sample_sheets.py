@@ -74,9 +74,9 @@ def make_sample_sheet(in_dir, out_dir):
 
 			# Write all info to the output file
 			output.write("\t".join(write_list) + "\t\t\n")
-			print("Warning: samples requires additional fields to be filled before running!")
-			print("Include what control to pair for each sample or 'No_ctl' if it is the control")
-			print("Include the replicate information")
+	print("Warning: samples requires additional fields to be filled before running!")
+	print("Include what control to pair for each sample or 'No_ctl' if it is the control")
+	print("Include the replicate information")
 
 	return sample_list
 
