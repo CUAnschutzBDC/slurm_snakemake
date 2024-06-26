@@ -1,17 +1,16 @@
 # Analysis pipelines
 Writen by Kristen Wells
 
-A collection of snakemake pipelines to analyze RNA datasets. Current pipelines include:
+A collection of snakemake pipelines to analyze omics datasets. Current pipelines include:
 
 * A scRNA-sequencing pipeline that analyzed 10x genomics datasets. Can be used with scRNA-seq, scCITE-seq, scVDJ-seq, and hashtagging (and any combination of those).
-* A basic bulk RNA-sequencing pipeline that includes options for trimming (cutadapt, bbduk or none). The pipeline includes alignment with star and read counting with FeatureCounts.
-* A pipieline to subset fastq files into smaller chunks.
+* A basic bulk RNA-sequencing pipeline that includes options for trimming (cutadapt, bbduk or none). The pipeline includes alignment with star and read counting with FeatureCounts. This pipeline will output a quality Rmarkdown as the final step.
+* A pipeline to process ChIP-seq data that includes options for trimming (cutadapt, bbduk, or none). The pipeline includes alignment iwth bowtie2, peak calling with Macs2 and initial analysis with diffbind. This pipeline will output a quality Rmarkdown as the final step.
 
 Pipelines that will be added soon include:
-* A bulk RNA-seq pipeline that is capable of analyzing NET seq data with or without spikie ins.
+* An ATAC-seq pipeline
 
-
-All snakemake pipelines presented here work best when run on an lsf cluster.
+Snakemake pipelines here were written to work on a slurm cluster but should be easily ported to other systems. All pipelines rely on docker and singularity images.
 
 Snakemake must be installed to use these pipelines.
 
