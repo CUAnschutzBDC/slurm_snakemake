@@ -1,0 +1,34 @@
+executor: slurm
+
+use-apptainer: True
+#apptainer-args: "\"--bind /scratch/alpine --bind /pl/active/AnschutzBDC\""
+
+default-resources:
+    slurm_partition: "amilan"
+    slurm_account:   "amc-general"
+
+set-resources:
+    merge_fastqs:
+        runtime: 10
+        mem: "1GB"
+    create_sample_csv:
+        runtime: 10
+        mem: "1GB"
+    cellranger_count:
+        runtime: 10
+        mem: "1GB"
+    create_aggr_csv:
+        runtime: 10
+        mem: "1GB"
+    run_aggr:
+        runtime: 240
+        mem: "5GB"
+    copy_files:
+        runtime: 30
+        mem: "1GB"
+    run_rscript:
+        runtime: 60
+        mem: "10GB"
+    run_dropkick:
+        runtime: 30
+        mem: "200GB"

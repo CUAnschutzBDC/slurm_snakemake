@@ -36,6 +36,11 @@ SAMPLE_SCRIPTS  = config["SAMPLE_SCRIPTS"]
 MERGE_SCRIPTS   = config["MERGE_SCRIPTS"]
 SAMPLE_INFO    = config["SAMPLE_INFO"]
 SLURM_TEMPLATE = config["SLURM_TEMPLATE"]
+CELLRANGER_PATH = config["CELLRANGER_PATH"]
+
+# Set apptainer bindings NOT A PERMANENT SOLUTION
+# Note we need to bind our alpine bin to the "server_bin" directory in the singularity environment. This has already been created and added to the path.
+os.environ["APPTAINER_BIND"] = "/scratch/alpine:/scratch/alpine,/pl/active/Anschutz_BDC:/pl/active/Anschutz_BDC,/tmp:/tmp,/usr/bin:/opt/server_bin"
 
 # Function to check paths for input files/directories
 def _check_path(path):
@@ -45,7 +50,8 @@ def _check_path(path):
         sys.exit("ERROR: " + path + " does not exist.")
 
 # Make the desired path in scratch
-user_variable = os.environ.get('USER')
+#user_variable = os.environ.get('USER')
+user_variable = "kwellswrasman@xsede.org"
 scratch_dir = os.path.join(SCRATCH_DIR, user_variable)
 current_dir = os.getcwd()
 rel_path_to_home = os.path.relpath(current_dir, start=BASE_PATH)
@@ -55,8 +61,8 @@ os.makedirs(RESULTS2, exist_ok = True)
 
 # Set sample/group names
 RNA_SAMPLES     = [x.strip() for x in RNA_SAMPLES]
-FASTQ_INFO      = "_S[0-9]+_L[0-9]+_R[12]_[0-9]+\.fastq\.gz"
-FASTQ_SHORT     = "_S[0-9]+_R[12]_[0-9]+\.fastq\.gz"
+FASTQ_INFO      = r"_S[0-9]+_L[0-9]+_R[12]_[0-9]+\.fastq\.gz"
+FASTQ_SHORT     = r"_S[0-9]+_R[12]_[0-9]+\.fastq\.gz"
 
 SAMPLE_DICT_RNA = {SAMPLES[i]: RNA_SAMPLES[i] for i in range(len(SAMPLES))}
 
@@ -180,6 +186,7 @@ for name in SAMPLES:
         if(name_1 != name_5):
             sys.exit(name_1 + " does not equal " + name_5 + " in the VDJ_T list.")
 
+print(script_name_dict.keys())
 # Final output files
 rule all:
     input:
@@ -191,11 +198,11 @@ rule all:
             "{results}/snake_outs/{sample}_count_done.txt",
             results = RESULTS, sample = SAMPLES
         ),
-        # Copy important output from scratch
-        expand(
-            "{results}/snake_outs/{sample}_moved_files.txt",
-            results = RESULTS, sample = SAMPLES
-        ),
+        # # Copy important output from scratch
+        # expand(
+        #     "{results}/snake_outs/{sample}_moved_files.txt",
+        #     results = RESULTS, sample = SAMPLES
+        # ),
         # expand(
         #     "{results}/snake_outs/{group}_csv_aggr_done.txt",
         #     results = RESULTS, group = AGGR_GROUP
@@ -204,15 +211,10 @@ rule all:
         #     "{results}/snake_outs/{group}_cellranger_aggr_done.txt",
         #     results = RESULTS, group = AGGR_GROUP
             # ),
-        # Run scar
-        expand(
-            "{results}/R_analysis/{sample}/files/scar_denoised.csv",
-            sample = SAMPLES, results = RESULTS
-        ),
-        expand(
-            "{results}/run_scripts/{sample}_run.txt",
-            sample = script_name_dict.keys(), results = RESULTS
-            ),
+        # expand(
+        #     "{results}/run_scripts/{sample}_run.txt",
+        #     sample = script_name_dict.keys(), results = RESULTS
+        #     ),
 #         # expand(
 #         #     "{results}/logs/{sample}_velocyto_done.out",
 #         #     results = RESULTS, sample = SAMPLES

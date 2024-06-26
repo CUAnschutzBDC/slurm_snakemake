@@ -1,110 +1,113 @@
 def _get_input(wildcards):
-	return_list = []
+    return_list = []
 
-	# First figure out where in the dict it should be
-	key_value = script_name_dict[wildcards.sample]
-	script_names = script_dict[key_value].keys()
+    # First figure out where in the dict it should be
+    key_value = script_name_dict[wildcards.sample]
+    script_names = script_dict[key_value].keys()
 
-	if key_value == "merged":
-		# If merged, first add all scripts associated with the samples being merged
-		for sample_name in MERGE_SCRIPTS["samples"]:
-			sample_scripts = script_dict[sample_name].keys()
-			for i in sample_scripts:
-				input_file = os.path.join(wildcards.results, "run_scripts", i + "_run.txt")
-				return_list.append(input_file)
+    if key_value == "merged":
+        # If merged, first add all scripts associated with the samples being merged
+        for sample_name in MERGE_SCRIPTS["samples"]:
+            sample_scripts = script_dict[sample_name].keys()
+            for i in sample_scripts:
+                input_file = os.path.join(wildcards.results, "run_scripts", i + "_run.txt")
+                return_list.append(input_file)
 
-	# Add scripts in order for the given sample, return once you hit the script you
-	# are currently on.
-	for i in script_names:
-	    if i == wildcards.sample:
-	    	return(return_list)
-	    else:
-	    	input_file = os.path.join(wildcards.results, "run_scripts", i + "_run.txt")
-	    	return_list.append(input_file) 
+    # Add scripts in order for the given sample, return once you hit the script you
+    # are currently on.
+    for i in script_names:
+        if i == wildcards.sample:
+            return(return_list)
+        else:
+            input_file = os.path.join(wildcards.results, "run_scripts", i + "_run.txt")
+            return_list.append(input_file) 
 
 def _get_dropkick_input(wildcards):
-	sample_name = wildcards.sample
-	sample_name = re.sub("__.*", "", wildcards.sample)
-	if sample_name != "merged":
-		return(os.path.join(wildcards.results, "R_analysis", sample_name, "files/dropkick_cells.csv"))
-	else:
-		return([])
+    sample_name = wildcards.sample
+    sample_name = re.sub("__.*", "", wildcards.sample)
+    if sample_name != "merged":
+        return(os.path.join(wildcards.results, "R_analysis", sample_name, "files/dropkick_cells.csv"))
+    else:
+        return([])
 
 def _get_scripts(wildcards):
-	key_value = script_name_dict[wildcards.sample]
-	script_name = script_dict[key_value][wildcards.sample]
+    key_value = script_name_dict[wildcards.sample]
+    script_name = script_dict[key_value][wildcards.sample]
 
-	full_script_path=os.path.join(SCRIPT_PATH, script_name)
-	_check_path(full_script_path)
-	return(full_script_path)
-
-def _get_cellranger_input(wildcards):
-	sample_name = wildcards.sample
-	actual_sample = sample_name.split("__")[0]
-	cellranger_input = os.path.join(wildcards.results, "snake_outs", actual_sample + "_count_done.txt")
-	moved_file_input = os.path.join(wildcards.results, "snake_outs", actual_sample + "_moved_files.txt")
-	scar_input = os.path.join(wildcards.results, "R_analysis", actual_sample, "files/scar_denoised.csv")
-	return([cellranger_input, moved_file_input, scar_input])
-
+    full_script_path=os.path.join(SCRIPT_PATH, script_name)
+    _check_path(full_script_path)
+    return(full_script_path)
 
 # Add in one rule that makes sure all cellranger is done. That output goes
 # into the return list.
 
 rule run_rscript:
-	input:
-		_get_input,
-		_get_cellranger_input
-	output:
-		"{results}/run_scripts/{sample}_run.txt"
-	resources:
-		job_name="rscript",
-		mem_mb=50000,
-		time="03:00:00",
-		partition="amilan",
-		restart_times = 1,
-		slurm=lambda wildcards: (
-			f"output={wildcards.results}/logs/rscript/{wildcards.sample}.out "
-			f"error={wildcards.results}/logs/rscript/{wildcards.sample}.err"
-		)
-	params:
-		scripts         = _get_scripts,
-		sample_info     = SAMPLE_INFO
-	singularity:
-		config["RSCRIPT_CONTAINER"]
-	threads:
-		1
-	shell:
-		"""
-		Rscript --vanilla {params.scripts} \
-			{wildcards.sample} \
-			{wildcards.results} \
-			{params.sample_info}
-			
-		echo "Finished rscript" > {output}
-		"""
+    input:
+        _get_dropkick_input,
+        _get_input
+    output:
+        "{results}/run_scripts/{sample}_run.txt"
+    params:
+        scripts         = _get_scripts,
+        sample_info     = SAMPLE_INFO
+    singularity:
+        config["RSCRIPT_CONTAINER"]
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/rscript/{wildcards.sample}.out "
+            f"--error={wildcards.results}/logs/rscript/{wildcards.sample}.err"
+        )
+    threads:
+        1   
+    shell:
+        """
+        Rscript --vanilla {params.scripts} \
+            {wildcards.sample} \
+            {wildcards.results} \
+            {params.sample_info}
+            
+        echo "Finished rscript" > {output}
+        """
 
-rule run_scar:
-	input:
-		"{results}/snake_outs/{sample}_moved_files.txt"
-	output:
-		"{results}/R_analysis/{sample}/files/scar_denoised.csv"
-	resources:
-		job_name="scar",
-		mem_mb=100000,
-		time="03:00:00",
-		partition="amilan",
-		restart_times = 1,
-		slurm=lambda wildcards: (
-			f"output={wildcards.results}/logs/scar/{wildcards.sample}.out "
-			f"error={wildcards.results}/logs/scar/{wildcards.sample}.err"
-		)
-	singularity:
-		config["SCAR_CONTAINER"]
-	threads:
-		10
-	shell:
-		"""
-		python src/scripts/indiviual_analysis/01b_run_scar.py \
-			-d {wildcards.results} \
-			-s {wildcards.sample}
-		"""
+rule run_dropkick:
+    input:
+        "{results}/snake_outs/{sample}_count_done.txt"
+    output:
+        "{results}/R_analysis/{sample}/images/dropkick/coef_plot.pdf",
+        "{results}/R_analysis/{sample}/files/dropkick_cells.csv"
+    singularity:
+        config["DROPKICK_CONTAINER"]
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/dropkick/{wildcards.sample}_dropkick.out "
+            f"--error={wildcards.results}/logs/dropkick/{wildcards.sample}_dropkick.err"
+        )
+    threads:
+        10   
+    shell:
+        """
+        python src/scripts/indiviual_analysis/01_dropkick.py -d {wildcards.results} -s {wildcards.sample}
+        """
+
+
+
+# rule run_scar:
+# 	input:
+# 		"{results}/logs/{sample}_count_done.txt"
+# 	output:
+# 		"{results}/R_analysis/{sample}/files/scar_denoised.csv"
+# 	params:
+# 		job_name  = "{sample}_run_scar",
+# 		memory    = "select[mem>100] rusage[mem=100]"
+# 	singularity:
+# 		config["SCAR_CONTAINER"]
+# 	log:
+# 		"{results}/logs/scar/scar_{sample}"
+# 	threads:
+# 		10
+# 	shell:
+# 		"""
+# 		python src/scripts/indiviual_analysis/01b_run_scar.py \
+# 			-d {wildcards.results} \
+# 			-s {wildcards.sample}
+# 		"""

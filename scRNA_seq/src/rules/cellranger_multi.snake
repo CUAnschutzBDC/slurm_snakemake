@@ -17,6 +17,15 @@ def _find_experiment_type(wildcards):
     else:
         return("RNA")
 
+def _find_run_type(wildcards):
+    if SAMPLE_DICT_VDJ_T[wildcards.sample] or SAMPLE_DICT_VDJ_B[wildcards.sample]:
+        reuturn("VDJ")
+        # Run cellranger count for CITE-seq and gene expression
+    elif SAMPLE_DICT_ADT[wildcards.sample]:
+        return("CITE")
+    else:
+        return("Count")
+
 # Merge fastqs and create symlinks =============================================
 # This rule will either merge multiple fastqs into a single file or create a 
 # symlink to the original fastq. If a comma separated list of sample names is 
@@ -36,13 +45,9 @@ rule merge_fastqs:
         vdj_t_dict = SAMPLE_DICT_VDJ_T,
         vdj_b_dict = SAMPLE_DICT_VDJ_B
     resources:
-        job_name="merge_fastq",
-        mem_mb=1000,
-        time="00:10:00",
-        partition="amilan",
-        slurm=lambda wildcards: (
-            f"output={wildcards.results}/logs/merge_fastq/{wildcards.sample}_fastq.out "
-            f"error={wildcards.results}/logs/merge_fastq/{wildcards.sample}_fastq.err"
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/merge_fastq/{wildcards.sample}_fastq.out "
+            f"--error={wildcards.results}/logs/merge_fastq/{wildcards.sample}_fastq.err"
         )
     threads:
         1   
@@ -179,13 +184,9 @@ rule create_sample_csv:
         vdj_t_dict = SAMPLE_DICT_VDJ_T,
         vdj_b_dict = SAMPLE_DICT_VDJ_B
     resources:
-        job_name="cellranger_csv",
-        mem_mb=1000,
-        time="00:10:00",
-        partition="amilan",
-        slurm=lambda wildcards: (
-            f"output={wildcards.results}/logs/cellranger_csv/{wildcards.sample}_cellranger.out "
-            f"error={wildcards.results}/logs/cellranger_csv/{wildcards.sample}_cellranger.err"
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/cellranger_csv/{wildcards.sample}_cellranger.out "
+            f"--error={wildcards.results}/logs/cellranger_csv/{wildcards.sample}_cellranger.err"
         )
     threads:
         1   
@@ -286,77 +287,72 @@ rule cellranger_count:
         genome     = GENOME,
         max_jobs   = MAX_JOBS,
         barcodes   = ADT_REF,
-        adt_dict   = SAMPLE_DICT_ADT,
-        vdj_t_dict = SAMPLE_DICT_VDJ_T,
-        vdj_b_dict = SAMPLE_DICT_VDJ_B,
         scratch    = RESULTS2,
-        slurm      = SLURM_TEMPLATE
+        slurm      = SLURM_TEMPLATE,
+        run_type   = _find_run_type,
+        cellranger = CELLRANGER_PATH
     resources:
-        job_name="cellranger",
-        mem_mb=5000,
-        time="12:00:00",
-        partition="amilan",
-        slurm=lambda wildcards: (
-            f"output={wildcards.results}/logs/cellranger/{wildcards.sample}_cellranger.out "
-            f"error={wildcards.results}/logs/cellranger/{wildcards.sample}_cellranger.err"
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/cellranger/{wildcards.sample}_cellranger.out "
+            f"--error={wildcards.results}/logs/cellranger/{wildcards.sample}_cellranger.err"
         )
     threads:
-        1   
-    run:
+        10
+    # singularity:
+    #     config["CELLRANTER_CONTAINER"]
+    shell:
+        """
+        echo $PATH
         # Run cellranger multi for vdj (CITE-seq) and gene expression
-        if params.vdj_t_dict[wildcards.sample] or params.vdj_b_dict[wildcards.sample]:
-            shell(
-                """
-                sample_csv={wildcards.results}/{wildcards.sample}_multi.csv
+        if [ "{params.run_type}" == "VDJ" ]
+        then
+            sample_csv={wildcards.results}/{wildcards.sample}_multi.csv
 
-                cd {params.scratch}
+            cd {params.scratch}
 
-                cellranger multi \
-                    --id={wildcards.sample} \
-                    --csv=$sample_csv \
-                    --jobmode={params.slurm} \
-                    --maxjobs={params.max_jobs}
-                """
-                )
+            {params.cellranger} multi \
+                --id={wildcards.sample} \
+                --csv=$sample_csv \
+                --jobmode={params.slurm} \
+                --maxjobs={params.max_jobs} \
+                --create-bam true
+
         # Run cellranger count for CITE-seq and gene expression
-        elif params.adt_dict[wildcards.sample]:
-            shell(
-                """
-                sample_csv={wildcards.results}/{wildcards.sample}_count.csv
-                ab_csv={params.barcodes}
+        elif [ "{params.run_type}" == "CITE" ]
+        then
+            sample_csv={wildcards.results}/{wildcards.sample}_count.csv
+            ab_csv={params.barcodes}
 
-                cd {params.scratch}
+            cd {params.scratch}
 
-                cellranger count \
-                    --id={wildcards.sample} \
-                    --libraries=$sample_csv \
-                    --feature-ref=$ab_csv \
-                    --transcriptome={params.genome} \
-                    --jobmode={params.slurm} \
-                    --maxjobs={params.max_jobs}
-                """
-            )
+            {params.cellranger} count \
+                --id={wildcards.sample} \
+                --libraries=$sample_csv \
+                --feature-ref=$ab_csv \
+                --transcriptome={params.genome} \
+                --jobmode={params.slurm} \
+                --maxjobs={params.max_jobs} \
+                --create-bam true
+        
+        else
+            sample_csv={wildcards.results}/{wildcards.sample}_count.csv
 
-        # Run cellranger count just for gene expression
-        else:
-            shell(
-                """
-                sample_csv={wildcards.results}/{wildcards.sample}_count.csv
+            cd {params.scratch}
 
-                cd {params.scratch}
+            {params.cellranger} count \
+                --id={wildcards.sample} \
+                --libraries=$sample_csv \
+                --transcriptome={params.genome} \
+                --create-bam true \
+                --jobmode={params.slurm} \
+                --maxjobs={params.max_jobs}
 
-                cellranger count \
-                    --id={wildcards.sample} \
-                    --libraries=$sample_csv \
-                    --transcriptome={params.genome} \
-                    --jobmode={params.slurm} \
-                    --maxjobs={params.max_jobs}
-                """
-            )
+
+        fi
 
         # Write output file
-        with open(output[0], "w") as out:
-            out.write("done\n")
+        touch {output}
+        """
 
 # Create multi csv =========================================================
 # This rule creates a csv file to aggregate the counts from a multi run
@@ -376,13 +372,9 @@ rule create_aggr_csv:
         vdj_b_dict = SAMPLE_DICT_VDJ_B,
         scratch    = RESULTS2
     resources:
-        job_name="aggr",
-        mem_mb=1000,
-        time="00:10:00",
-        partition="amilan",
-        slurm=lambda wildcards: (
-            f"output={wildcards.results}/logs/aggr_csv/{wildcards.group}_aggr_csv.out "
-            f"error={wildcards.results}/logs/aggr_csv/{wildcards.group}_aggr_csv.err"
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/aggr_csv/{wildcards.group}_aggr_csv.out "
+            f"--error={wildcards.results}/logs/aggr_csv/{wildcards.group}_aggr_csv.err"
         )
     threads:
         1   
@@ -423,13 +415,9 @@ rule run_aggr:
         max_jobs = MAX_JOBS,
         results  = RESULTS
     resources:
-        job_name="aggr",
-        mem=5000,
-        time="04:00:00",
-        partition="amilan",
-        slurm=lambda wildcards: (
-            f"output={wildcards.results}/logs/aggr/{wildcards.group}_aggr.out "
-            f"error={wildcards.results}/logs/aggr/{wildcards.group}_aggr.err"
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/aggr/{wildcards.group}_aggr.out "
+            f"--error={wildcards.results}/logs/aggr/{wildcards.group}_aggr.err"
         )
     threads:
         1   
@@ -458,13 +446,9 @@ rule copy_files:
         scratch    = RESULTS2,
         experiment = _find_experiment_type
     resources:
-        job_name="copy_files",
-        mem_mb=1000,
-        time="00:30:00",
-        partition="amilan",
-        slurm=lambda wildcards: (
-            f"output={wildcards.results}/logs/copy/{wildcards.sample}_copy.out "
-            f"error={wildcards.results}/logs/copy/{wildcards.sample}_copy.err"
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/copy/{wildcards.sample}_copy.out "
+            f"--error={wildcards.results}/logs/copy/{wildcards.sample}_copy.err"
         )
     threads:
         1   
@@ -476,8 +460,6 @@ rule copy_files:
             mkdir -p $save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix $save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix.h5 $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix.h5 $save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/web_summary.html $save_dir
         # Add in rules to copy other file types
         elif [ {params.experiment} == "VDJT_VDJB" ]; then
@@ -485,11 +467,9 @@ rule copy_files:
             full_save_dir=${{save_dir}}/count
             mkdir -p $full_save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix.h5 $full_save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_b $save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_t $save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix.h5 $full_save_dir
 
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
          # Add in rules to copy other file types
@@ -498,10 +478,8 @@ rule copy_files:
             full_save_dir=${{save_dir}}/count
             mkdir -p $full_save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix.h5 $full_save_dir            
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_t $save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix.h5 $full_save_dir
 
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
          # Add in rules to copy other file types
@@ -510,10 +488,8 @@ rule copy_files:
             full_save_dir=${{save_dir}}/count
             mkdir -p $full_save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix.h5 $full_save_dir            
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_b $save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix.h5 $full_save_dir
 
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
          # Add in rules to copy other file types
@@ -522,8 +498,6 @@ rule copy_files:
             mkdir -p $save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix $save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix.h5 $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix.h5 $save_dir
             rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/web_summary.html $save_dir
         fi
 

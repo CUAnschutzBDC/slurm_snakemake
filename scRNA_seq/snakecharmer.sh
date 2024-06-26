@@ -1,37 +1,28 @@
 #!/bin/bash 
 
-#SBATCH --job-name=snakemake
-#SBATCH --ntasks=1
-#SBATCH --time=24:00:00
-#SBATCH --mem=1gb
-#SBATCH --output=logs/snakemake_%J.out
-#SBATCH --partition=amilan
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=kristen.wells-wrasman@cuanschutz.edu
+# #SBATCH --job-name=snakemake
+# #SBATCH --ntasks=1
+# #SBATCH --time=5-00:00:00
+# #SBATCH --qos=long
+# #SBATCH --mem=1gb
+# #SBATCH --output=logs/snakemake_%J.out
+# #SBATCH --partition=amilan
+# #SBATCH --mail-type=ALL
+# #SBATCH --mail-user=kristen.wells-wrasman@cuanschutz.edu
 
 set -o nounset -o pipefail -o errexit -x
 
 mkdir -p logs
+module load anaconda
+conda activate snakemake8
 
-module load singularity/3.7.4
+#export APPTAINER_BIND="/scratch/alpine:/scratch/alpine,/pl/active/Anschutz_BDC:/pl/active/Anschutz_BDC"
 
-profile="slurm_profiles/slurm_profile_singularity"
-
-# Function to run snakemake
-run_snakemake() {
-    local num_jobs=$1
-    local config_file=$2
-    local profile=$3
-
-    snakemake \
-        --snakefile Snakefile \
-        --jobs $num_jobs \
-        --latency-wait 60 \
-        --rerun-incomplete \
-        --configfile $config_file \
-        --profile $profile \
-        --use-singularity \
-        --restart-times 1
-}
-
-run_snakemake 12 config.yaml $profile
+# Run snakemake pipeline
+snakemake \
+    --snakefile Snakefile \
+    --configfile config.yaml \
+    --jobs 12 \
+    --latency-wait 60 \
+    --rerun-incomplete \
+    --workflow-profile profiles/default 

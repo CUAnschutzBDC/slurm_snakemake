@@ -1,0 +1,21 @@
+name: scar
+channels:
+- nvidia
+- pytorch
+- conda-forge
+- bioconda
+dependencies:
+- cudatoolkit=11.8.0
+- pytorch=2.3.0
+- torchvision=0.18.1
+- pytorch-mutex=*=cpu
+- tqdm=4.66.2
+- pandas=2.2.2
+- seaborn=0.13.2
+- scikit-learn=1.5.0
+- anndata=0.10.7
+- scanpy=1.10.1
+- pyro-ppl=1.9.1
+- pip=24.0
+- scar=0.6.0
+- scvi-tools=1.1.2

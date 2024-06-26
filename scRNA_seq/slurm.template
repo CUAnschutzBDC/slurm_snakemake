@@ -29,5 +29,6 @@
 #SBATCH --mem=__MRO_MEM_GB__G
 #SBATCH -o __MRO_STDOUT__
 #SBATCH -e __MRO_STDERR__
+#SBATCH --time=08:00:00
 
 __MRO_CMD__
