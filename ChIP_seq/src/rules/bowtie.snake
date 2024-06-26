@@ -5,21 +5,30 @@
 # Function to return paths of input files
 def _get_input(wildcards):
     if wildcards.trim_method == "no":
-        # Grab path of the fastq file
-        fastq1 = SAMPLE_LIST.loc[wildcards.sample, "fastq1"]
-        data_dir = SAMPLE_LIST.loc[wildcards.sample, "data_dir"]
-        fastq1 = os.path.join(data_dir, fastq1)
-        # Make sure file exists
-        fastq1  = _check_path(fastq1)
-        if IS_PAIRED:
-            # Grab path of second read
-            fastq2 = SAMPLE_LIST.loc[wildcards.sample, "fastq2"]
-            fastq2 = os.path.join(data_dir, fastq2)
-            # Make sure file exists
-            fastq2 = _check_path(fastq2)
-            return(fastq1, fastq2)
+        if merge_fastq:
+            # Make a list of the merged fastqs
+            fastq1 = os.path.join(RESULTS2, "merged_fastqs", wildcards.sample + "_R1.fastq.gz")
+            if IS_PAIRED:
+                fastq2 = os.path.join(RESULTS2, "merged_fastqs", wildcards.sample + "_R2.fastq.gz")
+                return(fastq1, fastq2)
+            else:
+                return(fastq1)
         else:
-            return(fastq1)
+            # Grab path of the fastq file
+            fastq1 = SAMPLE_LIST.loc[wildcards.sample, "fastq1"]
+            data_dir = SAMPLE_LIST.loc[wildcards.sample, "data_dir"]
+            fastq1 = os.path.join(data_dir, fastq1)
+            # Make sure file exists
+            fastq1  = _check_path(fastq1)
+            if IS_PAIRED:
+                # Grab path of second read
+                fastq2 = SAMPLE_LIST.loc[wildcards.sample, "fastq2"]
+                fastq2 = os.path.join(data_dir, fastq2)
+                # Make sure file exists
+                fastq2 = _check_path(fastq2)
+                return(fastq1, fastq2)
+            else:
+                return(fastq1)
     else:
         fastq1 = os.path.join(RESULTS2, wildcards.trim_method + "_trim",
             wildcards.sample + "_R1_trimmed.fastq.gz")
@@ -179,7 +188,7 @@ rule mark_duplicates:
         finished = "{results}/bowtie2_{trim_method}_trim/{sample}_remove_mt.txt"
     output:
         picard_metrics = "{results}/bowtie2_{trim_method}_trim/{sample}_picard_dupMark.txt",
-        completed_file = "{results}/bowtie2_{trim_method}_trim/{sample}_finished.txt"
+        completed_file = "{results}/bowtie2_{trim_method}_trim/rm_dup_{sample}_finished.txt"
     params:
         mt_bam     = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_remove_mt.bam"),
         picard_jar = PICARD_JAR,
@@ -212,7 +221,7 @@ rule mark_duplicates:
 
 rule remove_duplicate_reads:
     input:
-        completed_file = "{results}/bowtie2_{trim_method}_trim/{sample}_finished.txt",
+        completed_file = "{results}/bowtie2_{trim_method}_trim/rm_dup_{sample}_finished.txt",
         mito_stats = "{results}/bowtie2_{trim_method}_trim/{sample}_mito_stats.txt"
     output:
         bam = "{results}/bowtie2_{trim_method}_trim/{sample}_remove_dup.bam",

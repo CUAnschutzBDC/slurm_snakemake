@@ -1,33 +1,60 @@
 # This runs fastqc on the files from the samples document can be single or paired end
 
 # Function to return paths of input files
-def _get_input(wildcards):
-    # Grab path of the fastq file
-    fastq1 = SAMPLE_LIST.loc[wildcards.sample, "fastq1"]
-    data_dir = SAMPLE_LIST.loc[wildcards.sample, "data_dir"]
-    fastq1 = os.path.join(data_dir, fastq1)
-    # Make sure file exists
-    fastq1  = _check_path(fastq1)
-    if IS_PAIRED:
-        # Grab path of second read
-        fastq2 = SAMPLE_LIST.loc[wildcards.sample, "fastq2"]
-        fastq2 = os.path.join(data_dir, fastq2)
-        # Make sure file exists
-        fastq2 = _check_path(fastq2)
-        return(fastq1, fastq2)
+def _get_fastqs(wildcards):
+    if merge_fastq:
+        # Make a list of the merged fastqs
+        fastq1 = os.path.join(RESULTS2, "merged_fastqs", wildcards.sample + "_R1.fastq.gz")
+        #fastq1 = _check_path(fastq1)
+        if IS_PAIRED:
+            fastq2 = os.path.join(RESULTS2, "merged_fastqs", wildcards.sample + "_R2.fastq.gz")
+            #fastq2 = _check_path(fastq2)
+            return(fastq1, fastq2)
+        else:
+            return(fastq1)
     else:
-        return(fastq1)
+        # Grab path of the fastq file
+        fastq1 = SAMPLE_LIST.loc[wildcards.sample, "fastq1"]
+        data_dir = SAMPLE_LIST.loc[wildcards.sample, "data_dir"]
+        fastq1 = os.path.join(data_dir, fastq1)
+        # Make sure file exists
+        fastq1  = _check_path(fastq1)
+        if IS_PAIRED:
+            # Grab path of second read
+            fastq2 = SAMPLE_LIST.loc[wildcards.sample, "fastq2"]
+            fastq2 = os.path.join(data_dir, fastq2)
+            # Make sure file exists
+            fastq2 = _check_path(fastq2)
+            return(fastq1, fastq2)
+        else:
+            return(fastq1)
+
+# Function to return paths of input files
+def _get_input(wildcards):
+    if merge_fastq:
+        return(os.path.join(wildcards.results, "merge_fastqs", wildcards.sample + "_merged_fastqs.txt"))
+    else:
+        save_file = os.path.join(wildcards.results, "merge_fastqs", wildcards.sample + "_fastqs_not_merged.txt")
+        with open(save_file, "w") as out:
+            out.write("No fastqs to merge.\n")
+        return(save_file)
 
 # Function to return paths of input files
 def _get_directories(wildcards):
-    # Grab path of the fastq file
-    fastq1 = SAMPLE_LIST.loc[wildcards.sample, "fastq1"]
+    if merge_fastq:
+        fastq1 = wildcards.sample + "_R1.fastq.gz"
+    else:
+        # Grab path of the fastq file
+        fastq1 = SAMPLE_LIST.loc[wildcards.sample, "fastq1"]
     path = os.path.join(RESULTS2, "fastqc_pre_trim")
     data_dir1 = re.sub(r'\.fastq\.gz', '_fastqc.zip', fastq1)
     data_dir1 = os.path.join(path, data_dir1)
     if IS_PAIRED:
         # Grab path of second read
-        fastq2 = SAMPLE_LIST.loc[wildcards.sample, "fastq2"]
+        if merge_fastq:
+            fastq2 = wildcards.sample + "_R2.fastq.gz"
+        else:
+            fastq2 = SAMPLE_LIST.loc[wildcards.sample, "fastq2"]
         data_dir2 = re.sub(r'\.fastq\.gz', '_fastqc.zip', fastq2)
         data_dir2 = os.path.join(path, data_dir2)
         return(data_dir1, data_dir2)
@@ -68,7 +95,8 @@ rule fastqc:
     params:
         directories = _get_directories,
         scratch     = RESULTS2,
-        output_dir  = os.path.join(RESULTS2, "fastqc_pre_trim")
+        output_dir  = os.path.join(RESULTS2, "fastqc_pre_trim"),
+        fastq_files = _get_fastqs
     resources:
         slurm_extra=lambda wildcards: (
             f"--output={wildcards.results}/logs/fastqc/fastqc_{wildcards.sample}_untrimmed.out "
@@ -79,7 +107,8 @@ rule fastqc:
     shell:
         """
         mkdir -p {params.output_dir}
-        fastqc {input} --outdir {params.output_dir} 2>&1
+        fastqc {params.fastq_files} --outdir {params.output_dir} 2>&1
+        echo "dir made"
         for dir in {params.directories};
         do
             name=$(basename -s .zip $dir)

@@ -8,6 +8,7 @@ import glob
 import os 
 import re
 import pandas as pd
+from collections import defaultdict
 
 # Set apptainer bindings NOT A PERMANENT SOLUTION
 os.environ["APPTAINER_BIND"] = "/scratch/alpine:/scratch/alpine,/pl/active/Anschutz_BDC:/pl/active/Anschutz_BDC,/tmp:/tmp"
@@ -48,8 +49,15 @@ if os.path.isdir(FASTQ_SCREEN_DATA):
 
 # Pull out sample names and fastq files
 SAMPLE_LIST = pd.read_table(config["SAMPLE_TABLE"]).set_index("sample", drop = False)
-SAMPLES = SAMPLE_LIST.index.values
+# Keep only unique values
+SAMPLES = set(SAMPLE_LIST.index.values)
 IS_PAIRED = "fastq2" in SAMPLE_LIST.columns
+
+# Determine if fastq files need to be merged first
+if any(SAMPLE_LIST.duplicated(subset = ["sample"])):
+    merge_fastq = True
+else:
+    merge_fastq = False
 
 if IS_PAIRED:
     CMD_PARAMS = config["PE"]
@@ -72,7 +80,6 @@ SAMPLES = [x.strip() for x in SAMPLES]
 SAMPLE_CONTROL = {}
 for sample, control in zip(SAMPLE_LIST.index.values, SAMPLE_LIST.control.values):
     if control != "No_ctl":
-        print(control)
         for one_control in control.split(","):
             SAMPLE_CONTROL[sample + "_" + one_control] = sample
 
@@ -88,7 +95,6 @@ if not QVALUE:
 else:
     QVALUE = float(QVALUE)
 
-# Final output files
 rule all:
     input:
         # Fastqc summary
@@ -157,3 +163,4 @@ include: "src/rules/chip_quality.snake"
 include: "src/rules/make_bigwig.snake"
 include: "src/rules/fastq_screen.snake"
 include: "src/rules/qc_plots.snake"
+include: "src/rules/merge_fastq.snake"

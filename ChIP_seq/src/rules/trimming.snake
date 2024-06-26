@@ -4,25 +4,43 @@
 # There is an adapter trimming usage example
 
 # Function to return paths of input files
-def _get_input(wildcards):
-    # Grab path of the fastq file
-    fastq1 = SAMPLE_LIST.loc[wildcards.sample, "fastq1"]
-    data_dir = SAMPLE_LIST.loc[wildcards.sample, "data_dir"]
-    fastq1 = os.path.join(data_dir, fastq1)
-    # Make sure file exists
-    fastq1  = _check_path(fastq1)
-    if IS_PAIRED:
-        # Grab path of second read
-        fastq2 = SAMPLE_LIST.loc[wildcards.sample, "fastq2"]
-
-        fastq2 = os.path.join(data_dir, fastq2)
-        # Make sure file exists
-        fastq2 = _check_path(fastq2)
-        return(fastq1, fastq2)
+def _get_fastqs(wildcards):
+    if merge_fastq:
+        # Make a list of the merged fastqs
+        fastq1 = os.path.join(RESULTS2, "merged_fastqs", wildcards.sample + "_R1.fastq.gz")
+        #fastq1 = _check_path(fastq1)
+        if IS_PAIRED:
+            fastq2 = os.path.join(RESULTS2, "merged_fastqs", wildcards.sample + "_R2.fastq.gz")
+            #fastq2 = _check_path(fastq2)
+            return(fastq1, fastq2)
+        else:
+            return(fastq1)
     else:
-        return(fastq1)
+        # Grab path of the fastq file
+        fastq1 = SAMPLE_LIST.loc[wildcards.sample, "fastq1"]
+        data_dir = SAMPLE_LIST.loc[wildcards.sample, "data_dir"]
+        fastq1 = os.path.join(data_dir, fastq1)
+        # Make sure file exists
+        fastq1  = _check_path(fastq1)
+        if IS_PAIRED:
+            # Grab path of second read
+            fastq2 = SAMPLE_LIST.loc[wildcards.sample, "fastq2"]
+            fastq2 = os.path.join(data_dir, fastq2)
+            # Make sure file exists
+            fastq2 = _check_path(fastq2)
+            return(fastq1, fastq2)
+        else:
+            return(fastq1)
 
-
+# Function to return paths of input files
+def _get_input(wildcards):
+    if merge_fastq:
+        return(os.path.join(wildcards.results, "merge_fastqs", wildcards.sample + "_merged_fastqs.txt"))
+    else:
+        save_file = os.path.join(wildcards.results, "fastqs_not_merged.txt")
+        with open(save_file, "w") as out:
+            out.write("No fastqs to merge.\n")
+        return(save_file)
 
 rule bbduk:
     input:
@@ -36,7 +54,8 @@ rule bbduk:
         fastq1    = os.path.join(RESULTS2, "bbduk_trim/{sample}_R1_trimmed.fastq.gz"),
         fastq2    = os.path.join(RESULTS2, "bbduk_trim/{sample}_R2_trimmed.fastq.gz"),
         out_dir   = os.path.join(RESULTS2, "bbduk_trim"),
-        paired    = IS_PAIRED
+        paired    = IS_PAIRED,
+        input_fq  = _get_fastqs
     resources:
         slurm_extra=lambda wildcards: (
             f"--output={wildcards.results}/logs/bbduk/bbduk_{wildcards.sample}.out "
@@ -50,8 +69,8 @@ rule bbduk:
         if [ {params.paired} ]
         then
             bbduk.sh \
-                in1   = {input.input_list[0]} \
-                in2   = {input.input_list[1]} \
+                in1   = {params.input_fq[0]} \
+                in2   = {params.input_fq[1]} \
                 out1  = {params.fastq1} \
                 out2  = {params.fastq2} \
                 ref   = {params.ref} \
@@ -80,7 +99,8 @@ rule cutadapt:
         fastq1    = os.path.join(RESULTS2, "cutadapt_trim/{sample}_R1_trimmed.fastq.gz"),
         fastq2    = os.path.join(RESULTS2, "cutadapt_trim/{sample}_R2_trimmed.fastq.gz"),
         out_dir   = os.path.join(RESULTS2, "cutadapt_trim"),
-        paired    = IS_PAIRED
+        paired    = IS_PAIRED,
+        input_fq  = _get_fastqs
     resources:
         slurm_extra=lambda wildcards: (
             f"--output={wildcards.results}/logs/cutadapt/cutadapt_{wildcards.sample}.out "
@@ -101,13 +121,13 @@ rule cutadapt:
                 {params.settings} \
                 -o {params.fastq1} \
                 -p {params.fastq2} \
-                {input.input_list[0]}  \
-                {input.input_list[1]}
+                {params.input_fq[0]}  \
+                {params.input_fq[1]}
         else
             cutadapt \
                 {params.settings} \
                 -o {params.fastq1} \
-                {input.input_list}
+                {params.input_fq}
         fi
         echo "done with cutadapt trimming" > {output}
         """
