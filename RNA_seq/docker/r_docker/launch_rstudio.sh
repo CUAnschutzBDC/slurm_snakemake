@@ -1,12 +1,11 @@
 #!/bin/bash 
 
 #SBATCH --job-name=rstudio
-#SBATCH --ntasks=4
+#SBATCH --ntasks=1
 #SBATCH --time=4:00:00
 #SBATCH --mem=4gb
 #SBATCH --output=logs/rstudio.out
-#SBATCH --partition=acompile
-#SBATCH --qos=compile
+#SBATCH --partition=amilan
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=kristen.wells-wrasman@cuanschutz.edu
 
