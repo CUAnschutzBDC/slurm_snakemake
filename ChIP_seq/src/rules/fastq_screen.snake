@@ -1,15 +1,6 @@
 def _get_fastqs(wildcards):
-    if merge_fastq:
-        # Make a list of the merged fastqs
-        all_fastqs = []
-        for sample in SAMPLES:
-            fastq_file = os.path.join(RESULTS2, "merged_fastqs", sample + "_R1.fastq.gz")
-            #fastq_file = _check_path(fastq_file)
-            all_fastqs.append(fastq_file)
-        return(all_fastqs)
-    else:
-        # Grab path of the fastq file
-        return(SAMPLE_LIST.apply(_join_paths, axis=1))
+    # Grab path of the fastq file
+    return(SAMPLE_LIST.apply(_join_paths, axis=1))
 
 def _join_paths(row):
     data_dir = row["data_dir"]
@@ -51,12 +42,12 @@ rule make_genomes:
 
 rule fastq_screen:
     input:
-        config = _get_config
+        config = _get_config,
+        fastqs = _get_fastqs
     output:
         completed_file = "{results}/fastq_screen/fastq_screen_done.txt"
     params:
-        out_dir = "{results}/fastq_screen",
-        fastqs  = _get_fastqs
+        out_dir = "{results}/fastq_screen"
     resources:
         slurm_extra=lambda wildcards: (
             f"--output={wildcards.results}/logs/fastq_screen/fastq_screen_align.out "
@@ -71,7 +62,7 @@ rule fastq_screen:
         fastq_screen \
             --conf {input.config} \
             --outdir {params.out_dir} \
-            {params.fastqs} 
+            {input.fastqs} 
         touch {output}
         """
 

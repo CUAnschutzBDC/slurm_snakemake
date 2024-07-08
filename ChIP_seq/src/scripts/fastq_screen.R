@@ -4,7 +4,7 @@ library(RColorBrewer)
 args <- commandArgs(trailingOnly = TRUE)
 
 save_dir <- args[1]
-file_pattern <- "R[1|2].*_screen.txt"
+file_pattern <- "_S[0-9]+_L[0-9]*_R[1|2]_[0-9]*_screen.txt"
 all_files <-list.files(path = save_dir, pattern = file_pattern, full.names = FALSE)
 
 # Set theme

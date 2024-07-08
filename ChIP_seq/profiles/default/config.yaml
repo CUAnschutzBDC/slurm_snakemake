@@ -11,9 +11,6 @@ default-resources:
     slurm_account:   "amc-general"
 
 set-resources:
-    fastq_screen:
-        runtime: 720
-        mem: "4GB"
     fastqc:
         runtime: 60
         mem: "4GB"
@@ -33,8 +30,8 @@ set-resources:
         runtime: 5
         mem: "1GB"
     align:
-        runtime: 360 
-        mem: "60GB"
+        runtime: 480
+        mem: "15GB"
         tasks: 1
         cpus_per_task: 6
         nodes: 1
@@ -43,13 +40,13 @@ set-resources:
         mem: "1GB"
     remove_mito:
         runtime: 120
-        mem: "60GB"
+        mem: "3GB"
     mark_duplicates:
-        runtime: 180
+        runtime: 360
         mem: "60GB"
     remove_duplicate_reads:
         runtime: 120
-        mem: "60GB"
+        mem: "3GB"
     dup_stats:
         runtime: 10
         mem: "1GB"
