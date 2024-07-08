@@ -3,24 +3,27 @@
 # The path to the scratch direcotry. Your username will be determined given that you
 # can view it with $USER
 SCRATCH_DIR:
-    "/scratch/alpine"
+    "/scratch/alpine/kwellswrasman@xsede.org"
 
 # The path to your working directory. Leaving this blank will just make it so this full path
 # is in your scratch space
 BASE_PATH:
-    "/pl/active/Anschutz_BDC"
+    "/pl/active/"
     
 # Path to the fastq directory, multiple directories can be given.
 RAW_DATA:
-    - "raw_data"
+    - "data"
 
 # A list of sample names. This will be the name of the output folder. All sample 
 # names must be unique. There must be the same number of sample names as RNA_samples
 # below.
 SAMPLES:
-    - "Npod6456_PLN"
-    - "Npod6553_PLN"
-    - "nPOD6247_PLN"
+    - "240422_2_2-nS_S5d4_A"
+    - "240422_2_2-nS_S5d4_B"
+    - "240422_2_2-nS_S5d4_C"
+    - "240422_Luc7_S5d4_A"
+    - "240422_Luc7_S5d4_B"
+    - "240422_Luc7_S5d4_C"
 
 # Sample names separated by groups to aggregate. If no samples to aggregate,
 # leave this blank. Structure is as follows:
@@ -35,9 +38,12 @@ AGGR_SAMPLES:
 # sample name. Only fastqs that begin with the sample name will be 
 # included in the analysis.
 RNA_SAMPLES:
-    - "Npod6456_PLN_GEX"
-    - "Npod6553_PLN_GEX"
-    - "nPOD6247_PLN_GEX"
+    - "240422_2_2-nS_S5d4_A"
+    - "240422_2_2-nS_S5d4_B"
+    - "240422_2_2-nS_S5d4_C"
+    - "240422_Luc7_S5d4_A"
+    - "240422_Luc7_S5d4_B"
+    - "240422_Luc7_S5d4_C"
 
 # Sample names for CITE-seq and cell hashing fastqs. If 
 # the libraries were sequenced multiple times, just make sure the fastqs 
@@ -45,23 +51,16 @@ RNA_SAMPLES:
 # was not performed, leave this blank. If you have CITE-seq on only a
 # a subset of samples, keep the slot empty (ex. - "")
 ADT_SAMPLES:
-    - "Npod6456_PLN_CSP"
-    - "Npod6553_PLN_CSP"
-    - "nPOD6247_PLN_CSP"
+
 
 # Sample names for TCR VDJ fastqs. Follow the same parameters required for gene
 # expression fastqs. If VDJ sequencing was not performed, leave this blank.
 VDJ_T_SAMPLES:
-    - "Npod6456_PLN_TCR"
-    - "Npod6553_PLN_TCR"
-    - "nPOD6247_PLN_TCR"
+
 
 # Sample names for BCR VDJ fastqs. Follow the same parameters required for gene
 # expression fastqs. If VDJ sequencing was not performed, leave this blank.
 VDJ_B_SAMPLES:
-    - "Npod6456_PLN_BCR"
-    - "Npod6553_PLN_BCR"
-    - "nPOD6247_PLN_BCR"
 
 # Path to the output directory.
 RESULTS:
@@ -69,18 +68,18 @@ RESULTS:
 
 # Path to the Cell Ranger genome reference.
 GENOME:
-    "/home/kwellswrasman@xsede.org/peta_active/resources/ref/cellranger/human/refdata-gex-GRCh38-2020-A"
+    "/pl/active/Anschutz_BDC/resources/ref/cellranger/human/refdata-gex-GRCh38-2020-A"
 
 # Path to the antibody reference table used to extract the antibody name 
 # and barcode. If CITE-seq or cell hashing was not performed, leave this 
 # blank.
 ADT_REF:
-    "files/antibody_barcodes.csv"
+
 
 # Path to the Cell Ranger VDJ reference. If VDJ sequencing was not performed,
 # leave this blank.
 VDJ_REF:
-    "/home/kwellswrasman@xsede.org/peta_active/resources/ref/cellranger/human/refdata-cellranger-vdj-GRCh38-alts-ensembl-5.0.0"
+
 
 # Maximum number of jobs per sample that can be submitted by Cell Ranger
 # at a time.
@@ -123,25 +122,44 @@ SAMPLE_SCRIPTS:
         - "06a_UMAP_find_resolution.R"
         - "06b_UMAP.R"
         - "07_name_clusters.R"
-        - "07b_name_clusters_manual.R"
         - "08_find_markers.R"
-        - "cd4_cd8_subsets.R"
-        - "cd4_cd8_clones_immcantation.R"
+        - "celltype_plots.R"
 
 # If merging all samples, put the scripts to process them below. Under
 # samples include what samples should be merged. If merging all samples,
-# set to "all"
+# set to "all". Make sure you add these exact sample names to the 
+# files/samples.tsv file and add the samples to merge to
+# the merge_samples column as comma separated values.
 MERGE_SCRIPTS:
-    # samples:
-    #     "all"
-    # scripts_run:
-        # - "01_Initial_processing.R"
-        # - "02_PCA.R"
-        # - "03_batch_correction.R"
-        # - "04a_UMAP_find_resolution.R"
-        # - "04b_UMAP.R"
-        # - "05_name_clusters.R"
-        # - "06_remove_doublets.R"
+    samples:
+        - "Luc7_merge"
+        - "2_2_merge"
+        - "all"
+    scripts_run:
+        - "01_Initial_processing.R"
+        - "02_PCA.R"
+        - "04a_UMAP_find_resolution.R"
+        - "04b_UMAP.R"
+        - "05_name_clusters.R"
+        - "06_remove_doublets.R"
+        - "differential_expression.R"
+        - "figures.R"
+        #- "07_subset_cells.R"
+
+# This assumes that you will run scripts in the same directory as MERGE_SCRIPTS
+# because likely the scripts will be similar. Make sure you add these exact
+# sample names to the files/samples.tsv file and add the associated merged
+# sample to the subset_from column.
+SUBSET_SCRIPTS:
+    samples:
+        - "Luc7_merge_EP"
+        - "2_2_merge_EP"
+    scripts_run:
+        - "02_PCA.R"
+        - "03_batch_correction.R"
+        - "04a_UMAP_find_resolution.R"
+        - "04b_UMAP.R"
+        - "05_name_clusters.R"
 
 
 # Path to the sample info sheet. This contains the information about if the

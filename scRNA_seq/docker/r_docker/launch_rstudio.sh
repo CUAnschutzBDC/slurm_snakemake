@@ -2,28 +2,20 @@
 
 #SBATCH --job-name=rstudio
 #SBATCH --ntasks=1
-#SBATCH --time=2:00:00
-#SBATCH --mem=10gb
+#SBATCH --time=08:00:00
+#SBATCH --mem=20gb
 #SBATCH --output=logs/rstudio.out
 #SBATCH --partition=amilan
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=kristen.wells-wrasman@cuanschutz.edu
 
-# Set up environment
-export ALPINE_SCRATCH=/gpfs/alpine1/scratch/$USER
-export APPTAINER_TMPDIR=$ALPINE_SCRATCH/apptainer_tmp
-export APPTAINER_CACHEDIR=$ALPINE_SCRATCH/apptainer_cache
-mkdir -pv $APPTAINER_CACHEDIR $APPTAINER_TMPDIR
+module load anaconda
 
 mkdir -p logs
 
 # path to directory on HPC for persistant storage of R packages
-USER_R_LIB=/projects/${USER}/R/rachel_human/4.2
-LOGIN_HOST=login-ci.rc.colorado.edu
-RSA_KEY=/Users/wellskr/.ssh/id_rsa
+USER_R_LIB=/projects/${USER}/R/nakayama_pln/4.2
 
 # path to sif file on HPC
-SINGULARITY_IMAGE="friedman_human_v4.sif"
+SINGULARITY_IMAGE="r_docker.sif"
 
 # Change home path so that rstudio saves files to projects instead
 export HOME=/projects/${USER}
@@ -60,7 +52,7 @@ END
 
 chmod +x ${workdir}/rsession.sh
 
-export APPTAINER_BIND="${workdir}/run:/run,${workdir}/tmp:/tmp,${workdir}/database.conf:/etc/rstudio/database.conf,${workdir}/rsession.sh:/etc/rstudio/rsession.sh,${workdir}/var/lib/rstudio-server:/var/lib/rstudio-server,/pl/active/Anschutz_BDC"
+export APPTAINER_BIND="${workdir}/run:/run,${workdir}/tmp:/tmp,${workdir}/database.conf:/etc/rstudio/database.conf,${workdir}/rsession.sh:/etc/rstudio/rsession.sh,${workdir}/var/lib/rstudio-server:/var/lib/rstudio-server,/pl/active/Anschutz_BDC:/pl/active/Anschutz_BDC"
 
 # Do not suspend idle sessions.
 # Alternative to setting session-timeout-minutes=0 in /etc/rstudio/rsession.conf
@@ -74,7 +66,7 @@ export APPTAINERENV_PASSWORD=$(openssl rand -base64 15)
 readonly PORT=$(python -c 'import socket; s=socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')
 cat 1>&2 <<END
 1. SSH tunnel from your workstation using the following command:
-   ssh -i ${RSA_KEY} -N -L 8787:${HOSTNAME}:${PORT} ${APPTAINERENV_USER}@${LOGIN_HOST}
+   ssh -i ~/.ssh/id_rsa -N -L 8787:${HOSTNAME}:${PORT} ${APPTAINERENV_USER}@login-ci.rc.colorado.edu
    and point your web browser to http://localhost:8787
 2. log in to RStudio Server using the following credentials:
    user: ${APPTAINERENV_USER}
@@ -82,7 +74,7 @@ cat 1>&2 <<END
 When done using RStudio Server, terminate the job by:
 1. Exit the RStudio Session ("power" button in the top right corner of the RStudio window)
 2. Issue the following command on the login node:
-      scancel ${SLURM_JOB_ID}
+      scancel ${LSB_JOBID}
 END
 
 singularity exec $SINGULARITY_EXEC_OPTS --cleanenv $SINGULARITY_IMAGE \

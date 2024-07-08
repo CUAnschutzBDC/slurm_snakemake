@@ -1,3 +1,54 @@
+def build_merge_input(key_value, samples, sample_info, script_type, results, return_list):
+    # If merged, first add all scripts associated with the samples being merged
+
+    # Some housekeeping to select the correct column of the sample table
+    if script_type == "merged":
+        colname = "merge_samples"
+    elif script_type == "subset":
+        colname = "subset_from"
+    else:
+        sys.exit(f"Unknown script_type, {script_type}!")
+
+    # Set combine samples to an empty string to check for incorrectly formatted 
+    # sample tables
+    combine_samples = ""
+
+    # If "_all" just add all samples
+    if key_value == f"{script_type}_all":
+        combine_samples = samples
+    else: 
+        merge_sample = re.sub(f"{script_type}_", "", key_value)
+        with open(sample_info, "r") as all_samples:
+            header = next(all_samples).strip().split("\t")
+            for line in all_samples:
+                line = line.strip().split("\t")
+                line_dict = dict(zip(header, line))
+                if line_dict["sample"] == merge_sample:
+                    combine_samples = line_dict[colname].split(",")
+        if combine_samples == "":
+            sys.exit(f"No samples found for {merge_sample}! Check the {colname} column in the sample info file")
+    if script_type == "subset":
+        combine_samples = [f"merged_{sample}" for sample in combine_samples]
+    for sample_name in combine_samples:
+        sample_scripts = script_dict[sample_name].keys()
+        for i in sample_scripts:
+            input_file = os.path.join(results, "run_scripts", f"{i}_run.txt")
+            return_list.append(input_file)
+    
+    return return_list
+
+def build_all_input(script_names, sample, results, return_list):
+    # Add scripts in order for the given sample, return once you hit the script you
+    # are currently on.
+    for i in script_names:
+        if i == sample:
+            # return_short = [os.path.basename(i) for i in return_list]
+            # print(return_short)
+            return return_list
+        else:
+            input_file = os.path.join(results, "run_scripts", f"{i}_run.txt")
+            return_list.append(input_file) 
+
 def _get_input(wildcards):
     return_list = []
 
@@ -5,22 +56,22 @@ def _get_input(wildcards):
     key_value = script_name_dict[wildcards.sample]
     script_names = script_dict[key_value].keys()
 
-    if key_value == "merged":
-        # If merged, first add all scripts associated with the samples being merged
-        for sample_name in MERGE_SCRIPTS["samples"]:
-            sample_scripts = script_dict[sample_name].keys()
-            for i in sample_scripts:
-                input_file = os.path.join(wildcards.results, "run_scripts", i + "_run.txt")
-                return_list.append(input_file)
+    # Add all of the scripts necessary before the merged script can be run
+    if re.search("merged", key_value):
+        return_list = build_merge_input(key_value = key_value, samples = SAMPLES, 
+                                       sample_info = SAMPLE_INFO, script_type = "merged",
+                                       results = wildcards.results, return_list = return_list)
 
-    # Add scripts in order for the given sample, return once you hit the script you
-    # are currently on.
-    for i in script_names:
-        if i == wildcards.sample:
-            return(return_list)
-        else:
-            input_file = os.path.join(wildcards.results, "run_scripts", i + "_run.txt")
-            return_list.append(input_file) 
+    elif re.search("subset", key_value):
+        return_list = build_merge_input(key_value = key_value, samples = SAMPLES, 
+                                       sample_info = SAMPLE_INFO, script_type = "subset",
+                                       results = wildcards.results, return_list = return_list)
+
+
+    # Build the per sample input -- This goes through each script in order and adds it to the return list until it hits
+    # the current script
+    return build_all_input(script_names = script_names, sample = wildcards.sample, 
+                           results = wildcards.results, return_list = return_list)
 
 def _get_dropkick_input(wildcards):
     sample_name = wildcards.sample
@@ -43,7 +94,7 @@ def _get_scripts(wildcards):
 
 rule run_rscript:
     input:
-        _get_dropkick_input,
+        #_get_dropkick_input,
         _get_input
     output:
         "{results}/run_scripts/{sample}_run.txt"
@@ -83,7 +134,7 @@ rule run_dropkick:
             f"--error={wildcards.results}/logs/dropkick/{wildcards.sample}_dropkick.err"
         )
     threads:
-        10   
+        1  
     shell:
         """
         python src/scripts/indiviual_analysis/01_dropkick.py -d {wildcards.results} -s {wildcards.sample}

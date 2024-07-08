@@ -10,8 +10,9 @@ import glob
 import os 
 import re
 from collections import defaultdict
-
-
+import pandas as pd
+import sys
+from typing import Tuple, Optional
 
 # Parameters from config.yaml
 SCRATCH_DIR    = config["SCRATCH_DIR"]
@@ -36,157 +37,318 @@ SAMPLE_SCRIPTS  = config["SAMPLE_SCRIPTS"]
 MERGE_SCRIPTS   = config["MERGE_SCRIPTS"]
 SAMPLE_INFO    = config["SAMPLE_INFO"]
 SLURM_TEMPLATE = config["SLURM_TEMPLATE"]
-CELLRANGER_PATH = config["CELLRANGER_PATH"]
+SUBSET_SCRIPTS  = config["SUBSET_SCRIPTS"]
+
+#CELLRANGER_PATH = config["CELLRANGER_PATH"]
 
 # Set apptainer bindings NOT A PERMANENT SOLUTION
-# Note we need to bind our alpine bin to the "server_bin" directory in the singularity environment. This has already been created and added to the path.
-os.environ["APPTAINER_BIND"] = "/scratch/alpine:/scratch/alpine,/pl/active/Anschutz_BDC:/pl/active/Anschutz_BDC,/tmp:/tmp,/usr/bin:/opt/server_bin"
+# Note we need to bind our alpine bin to the "server_bin" directory in the singularity environment.
+# This has already been created and added to the path.
+os.environ["APPTAINER_BIND"] = f"/scratch/alpine:/scratch/alpine," \
+                               f"/pl/active/Anschutz_BDC:/pl/active/Anschutz_BDC," \
+                               f"/tmp:/tmp," \
+                               f"/usr/bin:/opt/server_bin"
 
 # Function to check paths for input files/directories
-def _check_path(path):
+def _check_path(path: str) -> str:
     if os.path.exists(path):
         return os.path.abspath(path)
     else:
-        sys.exit("ERROR: " + path + " does not exist.")
+        sys.exit(f"ERROR: {path} does not exist.")
+
+def setup_scratch(base_path: str, scratch_dir: str, results_dir: str) -> str:
+    """
+    Makes a path in the scratch space identical to the path in the current direcotry.
+    Returns the variable with this new path
+    """
+    current_dir = os.getcwd()
+    rel_path_to_home = os.path.relpath(current_dir, start=base_path)
+
+    results2 = os.path.join(scratch_dir, rel_path_to_home, results_dir)
+    os.makedirs(results2, exist_ok = True)
+
+    return results2
+
+
+def make_sample_dicts(
+    samples: list,
+    type_samples: list,
+    reference: Optional[str] = None
+) -> Tuple[list, dict, Optional[str]]:
+    """
+    Makes the sample dictionaries for all assay types.
+
+    Args:
+        samples (list): List of sample names.
+        type_samples (list): List of type-specific samples.
+        reference (str, optional): Path to reference file.
+
+    Returns:
+        tuple: (type_samples, sample_dict, reference)
+    """
+    if type_samples:
+        # Removes the newlines at the end of each sample
+        type_samples = [sample.strip() for sample in type_samples]
+        # Make a dictionary mapping the sample name to the fastq prefix
+        sample_dict = dict(zip(samples, type_samples))
+        if reference is not None:
+            reference = _check_path(reference)
+    else:
+        sample_dict = {sample: "" for sample in samples}
+
+    return type_samples, sample_dict, reference
+
+def make_chemsitry_dict(samples: list, chemistry: Optional[dict] = None) -> dict:
+    """
+    Makes the chemistry dictionary. If any chemistries aren't provided for a sample,
+    the chemistry is set to auto
+
+    Args:
+        samples (list): List of sample names.
+        chemistry (dict, optional): Existing chemistry dictionary.
+
+    Returns:
+        chemistry dictionary
+    """
+    if chemistry is None:
+        chemistry = {}
+
+    return {sample: chemistry.get(sample, "auto") for sample in samples}
+
+def create_raw_data_dict(samples: list, raw_data: list) -> dict:
+    """
+    Create the raw data dictionary
+
+    Args:
+        samples (list): list of sample names
+        raw_data (list): list of raw_data directory paths
+    
+    Returns:
+        A new dictionary of the raw data directories mapped to samples
+    """
+    if len(raw_data) == len(samples):
+        return {sample: data for sample, data in zip(samples, raw_data)}
+    elif len(raw_data) == 1:
+        return {sample: raw_data[0] for sample in samples}
+    else:
+        raise ValueError("RAW_DATA must either be the same length of samples or length 1")
+
+def ensure_directory_exists(path: str) -> str:
+    """
+    Make sure paths exist and create them if not
+
+    Args:
+        path (str): The path to check
+    
+    Returns:
+        path (str): The full path that has been created if it doesn't already exist
+    """
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return _check_path(path)
+
+def build_general_scripts(scripts_run: dict) -> Tuple[dict, dict]:
+    """
+    Creates a dictionary containing a list of all scripts to run. Note, each of these
+    will only be run once and are not dependent on sample.
+
+    Args:
+        scripts_run - The scripts_run input from the config file
+    
+    Returns:
+        script_dict - A nested dictionary. The first layer, the key is a sample name and the value is 
+        an ordered dictionary containing all scripts to run for that sample (in the order required) tied to 
+        the sample as the unique key (which will be used for all output and log files) and the full path
+        to the script as the value. This dictionary is used to pull out what scripts need to be run before
+        a sspecific script can be run in addition to the path of each script.
+        script_name_dict - A dictionary mapping the unique key from the script_dict (which consists of the
+        sample and the script name that is used for log and output files) mapped to the sample. This way
+        it is easy to tie the sample to the specific script. This is helpful for cases when extra pieces
+        are added to the unique key of the script_dict
+    """
+
+    if scripts_run:
+        # Get R script info
+        # All script names is the keys of scripts run
+        script_name_dict = {script:"all_scripts" for script in scripts_run.keys()}
+        # Create script dict where all scripts is all the scripts_run scripts
+        script_dict = {"all_scripts": scripts_run}
+
+        return script_dict, script_name_dict
+    else:
+        return {}, {}
+
+def build_sample_scripts(
+    sample_scripts: dict, 
+    samples: list, 
+    script_dict: dict, 
+    script_name_dict: dict
+) -> Tuple[dict, dict]:
+    """
+    For each sample, adds all of the sample specific scripts to a dictionary. This is done so that
+    the same scripts can be run for different samples in parallel, but scripts for one sample (that
+    are often dependent on each other) are run in order.
+
+    Args:
+        sample_scripts - The dictionary from the config file 
+        samples - A list of all samples from the experiment
+        script_dict - The nested dictionary made by build_general_scripts and described in depth below
+        script_name_dict - The dictionary made by build_general_scripts and described in depth below.
+    
+    Returns:
+        script_dict - A nested dictionary. The first layer, the key is a sample name and the value is 
+        an ordered dictionary containing all scripts to run for that sample (in the order required) tied to 
+        the sample as the unique key (which will be used for all output and log files) and the full path
+        to the script as the value. This dictionary is used to pull out what scripts need to be run before
+        a sspecific script can be run in addition to the path of each script.
+        script_name_dict - A dictionary mapping the unique key from the script_dict (which consists of the
+        sample and the script name that is used for log and output files) mapped to the sample. This way
+        it is easy to tie the sample to the specific script. This is helpful for cases when extra pieces
+        are added to the unique key of the script_dict
+    """
+    # First check if there are any sample scripts to run, if not, return the dictionaries unchanged.
+    if not sample_scripts:
+        return script_dict, script_name_dict
+
+    # Decide what samples to run scripts for, if all, run all samples
+    if sample_scripts["samples"] == "all":
+        sample_scripts["samples"] = samples
+    
+    # Build the dictionary for each sample
+    for sample_name in sample_scripts["samples"]:
+        individual_dict = OrderedDict()
+
+        # Each sample is an ordered dictionary of all scripts in order
+        for script in sample_scripts["scripts_run"]:
+
+            # This key will be the unique name used for log and output files
+            dict_key = f"{sample_name}__{script.replace('.R', '')}"
+            dict_value = os.path.join("individual_analysis", script)
+            individual_dict[dict_key] = dict_value
+            script_name_dict[dict_key] = sample_name
+        # Add the new dictionary to the existing script_dict dictionary
+        script_dict[sample_name] = individual_dict
+    
+    return script_dict, script_name_dict
+
+def build_merge_scripts(
+    new_script_dict: dict,
+    script_dict: dict,
+    script_name_dict: dict,
+    type: str
+) -> Tuple[dict, dict]:
+    """
+    For each sample, adds all of the merged scripts (both before and after subsetting) to a dictionary. This is done so that
+    the same scripts can be run for different samples in parallel, but scripts for one sample (that
+    are often dependent on each other) are run in order.
+
+    Args:
+        new_script_dict - The dictionary from the config file 
+        script_dict - The nested dictionary made by build_general_scripts and described in depth below
+        script_name_dict - The dictionary made by build_general_scripts and described in depth below.
+        type - If it is merged or subsetted
+    
+    Returns:
+        script_dict - A nested dictionary. The first layer, the key is a sample name and the value is 
+        an ordered dictionary containing all scripts to run for that sample (in the order required) tied to 
+        the sample as the unique key (which will be used for all output and log files) and the full path
+        to the script as the value. This dictionary is used to pull out what scripts need to be run before
+        a sspecific script can be run in addition to the path of each script.
+        script_name_dict - A dictionary mapping the unique key from the script_dict (which consists of the
+        sample and the script name that is used for log and output files) mapped to the sample. This way
+        it is easy to tie the sample to the specific script. This is helpful for cases when extra pieces
+        are added to the unique key of the script_dict
+    """
+    # First check if there are scripts to merge, if not, return the dictionaries unchanged.
+    if not new_script_dict:
+        return script_dict, script_name_dict
+    
+    # Build dictionaries for each "sample" or merge group, each will be an ordered dictionary of scripts to run in 
+    # the order they should be run
+    for sample in new_script_dict["samples"]:
+        new_dict = OrderedDict()
+        dict_name = f"{type}_{sample}"
+        for script in new_script_dict["scripts_run"]:
+            dict_key = f"{sample}__{script.replace('.R', '')}"
+            dict_value = os.path.join("integrated_analysis", script)
+            new_dict[dict_key] = dict_value
+            script_name_dict[dict_key] = dict_name
+        script_dict[dict_name] = new_dict
+    
+    return script_dict, script_name_dict
+
+def build_script_dicts(
+    scripts_run: dict, 
+    sample_scripts: dict,
+    merge_scripts: dict,
+    subset_scripts: dict,
+    samples: list
+) -> Tuple[dict, dict]:
+    """
+    Takes dictionaries from the config file and builds new dictionaries that are used to determine the order
+    scripts will be run in and what scripts can't be run in parallel
+
+    Args:
+        scripts_run - Standalone scripts from the config file
+        sample_scripts - scripts run in order for each sample from the config file
+        merge_scripts - scripts run in order based on merging of samples
+        subset_scripts - scripts run in order after subsetting the merged data
+        samples - the full list of samples
+
+    Returns:
+        script_dict - A nested dictionary. The first layer, the key is a sample name and the value is 
+        an ordered dictionary containing all scripts to run for that sample (in the order required) tied to 
+        the sample as the unique key (which will be used for all output and log files) and the full path
+        to the script as the value. This dictionary is used to pull out what scripts need to be run before
+        a sspecific script can be run in addition to the path of each script.
+        script_name_dict - A dictionary mapping the unique key from the script_dict (which consists of the
+        sample and the script name that is used for log and output files) mapped to the sample. This way
+        it is easy to tie the sample to the specific script. This is helpful for cases when extra pieces
+        are added to the unique key of the script_dict
+    """
+    script_dict, script_name_dict = build_general_scripts(scripts_run)
+    script_dict, script_name_dict = build_sample_scripts(sample_scripts, samples, script_dict, script_name_dict)
+    script_dict, script_name_dict = build_merge_scripts(merge_scripts, script_dict, script_name_dict, type = "merged")
+    script_dict, script_name_dict = build_merge_scripts(subset_scripts, script_dict, script_name_dict, type = "subset")
+    
+    return script_dict, script_name_dict
 
 # Make the desired path in scratch
-#user_variable = os.environ.get('USER')
-user_variable = "kwellswrasman@xsede.org"
-scratch_dir = os.path.join(SCRATCH_DIR, user_variable)
-current_dir = os.getcwd()
-rel_path_to_home = os.path.relpath(current_dir, start=BASE_PATH)
+RESULTS2 = setup_scratch(base_path = BASE_PATH, scratch_dir = SCRATCH_DIR, results_dir = RESULTS)
 
-RESULTS2 = os.path.join(scratch_dir, rel_path_to_home, RESULTS)
-os.makedirs(RESULTS2, exist_ok = True)
-
-# Set sample/group names
-RNA_SAMPLES     = [x.strip() for x in RNA_SAMPLES]
+# Fastq paths
 FASTQ_INFO      = r"_S[0-9]+_L[0-9]+_R[12]_[0-9]+\.fastq\.gz"
 FASTQ_SHORT     = r"_S[0-9]+_R[12]_[0-9]+\.fastq\.gz"
 
-SAMPLE_DICT_RNA = {SAMPLES[i]: RNA_SAMPLES[i] for i in range(len(SAMPLES))}
+# Set up sample dictionaries
+RNA_SAMPLES, SAMPLE_DICT_RNA, RNA_REF = make_sample_dicts(SAMPLES, RNA_SAMPLES, 
+                                                          reference = None)
 
-if ADT_SAMPLES:
-    ADT_SAMPLES = [re.sub(", ", ",", x.strip()) for x in ADT_SAMPLES]
-    #SAMPLES     = [x + "-" + re.sub(",", "_", y) for x, y in zip(RNA_SAMPLES, ADT_SAMPLES)]
-    SAMPLE_DICT_ADT = {SAMPLES[i]: ADT_SAMPLES[i] for i in range(len(SAMPLES))}
-    ADT_REF     = _check_path(ADT_REF)
-else:
-    SAMPLE_DICT_ADT = {SAMPLES[i]: "" for i in range(len(SAMPLES))}
+ADT_SAMPLES, SAMPLE_DICT_ADT, ADT_REF = make_sample_dicts(SAMPLES, ADT_SAMPLES, 
+                                                          reference = ADT_REF)
 
-if VDJ_T_SAMPLES:
-    VDJ_T_SAMPLES = [x.strip() for x in VDJ_T_SAMPLES]
-    SAMPLE_DICT_VDJ_T = {SAMPLES[i]: VDJ_T_SAMPLES[i] for i in range(len(SAMPLES))}
-    VDJ_REF     = _check_path(VDJ_REF)
-else:
-    SAMPLE_DICT_VDJ_T = {SAMPLES[i]: "" for i in range(len(SAMPLES))}
+VDJ_T_SAMPLES, SAMPLE_DICT_VDJ_T, VDJ_REF = make_sample_dicts(SAMPLES, VDJ_T_SAMPLES, 
+                                                          reference = VDJ_REF)
+
+VDJ_B_SAMPLES, SAMPLE_DICT_VDJ_B, VDJ_REF = make_sample_dicts(SAMPLES, VDJ_B_SAMPLES, 
+                                                          reference = VDJ_REF)
+
+# Make a chemsitry dictionary in case any chemisries were provided
+CHEMISTRY = make_chemsitry_dict(SAMPLES, CHEMISTRY)
 
 
-if VDJ_B_SAMPLES:
-    VDJ_B_SAMPLES = [x.strip() for x in VDJ_B_SAMPLES]
-    SAMPLE_DICT_VDJ_B = {SAMPLES[i]: VDJ_B_SAMPLES[i] for i in range(len(SAMPLES))}
-    VDJ_REF     = _check_path(VDJ_REF)
-else:
-    SAMPLE_DICT_VDJ_B = {SAMPLES[i]: "" for i in range(len(SAMPLES))}
-
-print(CHEMISTRY)
-
-# Make a chemistry dictionary
-for i in range(len(SAMPLES)):
-    if(CHEMISTRY is not None):
-        if not CHEMISTRY.get(SAMPLES[i]):
-            CHEMISTRY[SAMPLES[i]] = "auto"
-    else:
-        CHEMISTRY = {}
-        CHEMISTRY[SAMPLES[i]] = "auto"
-
-print(CHEMISTRY)
-
-# Check/set directory/file paths
-if len(RAW_DATA) == len(SAMPLES):
-    RAW_DATA_DICT = {SAMPLES[i]: RAW_DATA[i] for i in range(len(SAMPLES))}
-elif len(RAW_DATA) == 1:
-    RAW_DATA_DICT = {SAMPLES[i]: RAW_DATA[0] for i in range(len(SAMPLES))}
-else:
-    sys.exit("RAW_DATA must either be the same length of samples or length 1")
-
-if not os.path.exists(RESULTS):
-    os.makedirs(RESULTS)
-RESULTS = _check_path(RESULTS)
+# Create and check directories
+RAW_DATA_DICT = create_raw_data_dict(SAMPLES, RAW_DATA)
+RESULTS = ensure_directory_exists(RESULTS)
+FASTQ_DIR = ensure_directory_exists(os.path.join(RESULTS2, "fastqs"))
 SLURM_TEMPLATE = _check_path(SLURM_TEMPLATE)
-#GENOME  = _check_path(GENOME)
 
-FASTQ_DIR = os.path.join(RESULTS2, "fastqs")
-if not os.path.exists(FASTQ_DIR):
-    os.makedirs(FASTQ_DIR)
+AGGR_GROUP = AGGR_GROUP or "none"
+VELOCYTO_GROUP = VELOCYTO_GROUP or "none"
 
-if not AGGR_GROUP:
-    AGGR_GROUP = "none"
+# Build script dicts
+script_dict, script_name_dict = build_script_dicts(SCRIPTS_RUN, SAMPLE_SCRIPTS, MERGE_SCRIPTS, SUBSET_SCRIPTS, SAMPLES)
 
-if not VELOCYTO_GROUP:
-    VELOCYTO_GROUP = "none"
-
-if SCRIPTS_RUN:
-    # Get R script info
-    # All script names is the keys of scripts run
-    script_name_dict = {i:"all_scripts" for i in SCRIPTS_RUN.keys()}
-
-
-    # Create script dict where all scripts is all the scripts_run scripts
-    script_dict = {"all_scripts": SCRIPTS_RUN}
-else:
-    script_dict = {}
-    script_name_dict = {}
-
-if SAMPLE_SCRIPTS:
-    if SAMPLE_SCRIPTS["samples"] == "all":
-        SAMPLE_SCRIPTS["samples"] = SAMPLES
-    for sample_name in SAMPLE_SCRIPTS["samples"]:
-        individual_dict = OrderedDict()
-        for script in SAMPLE_SCRIPTS["scripts_run"]:
-            # Get key and value information
-            dict_key = sample_name + "__" + script
-            dict_key = re.sub('\\.R', '', dict_key)
-            dict_value = os.path.join("indiviual_analysis", script)
-            # Add to an individual dict
-            individual_dict[dict_key] = dict_value
-            # Add the script name to all names
-            script_name_dict[dict_key] = sample_name
-        # Add new dict to the script dict under the sample name as the key
-        script_dict[sample_name] = individual_dict
-
-if MERGE_SCRIPTS:
-    if MERGE_SCRIPTS["samples"] == "all":
-        MERGE_SCRIPTS["samples"] = SAMPLES
-    merged_dict = OrderedDict()
-    for script in MERGE_SCRIPTS["scripts_run"]:
-        dict_key = "merged__" + script
-        dict_key = re.sub('\\.R', '', dict_key)
-        dict_value = os.path.join("integrated_analysis", script)
-        merged_dict[dict_key] = dict_value
-        script_name_dict[dict_key] = "merged"
-    script_dict["merged"] = merged_dict
-
-# Check that all names were entered correctly
-for name in SAMPLES:
-    name_1 = re.search("_[A-Z]+", name).group()
-    name_2 = re.search("_[A-Z]+", SAMPLE_DICT_RNA[name]).group()
-    if(name_1 != name_2):
-        sys.exit(name_1 + " does not equal " + name_2 + " in the RNA list.")
-    if ADT_SAMPLES:
-        name_3 = re.search("_[A-Z]+", SAMPLE_DICT_ADT[name]).group()
-        if(name_1 != name_3):
-            sys.exit(name_1 + " does not equal " + name_3 + " in the ADT list.")
-    if VDJ_B_SAMPLES:
-        name_4 = re.search("_[A-Z]+", SAMPLE_DICT_VDJ_B[name]).group()
-        if(name_1 != name_4):
-            sys.exit(name_1 + " does not equal " + name_2 + " in the VDJ_B list.")
-    if VDJ_T_SAMPLES:
-        name_5 = re.search("_[A-Z]+", SAMPLE_DICT_VDJ_T[name]).group()
-        if(name_1 != name_5):
-            sys.exit(name_1 + " does not equal " + name_5 + " in the VDJ_T list.")
-
-print(script_name_dict.keys())
 # Final output files
 rule all:
     input:
@@ -198,11 +360,11 @@ rule all:
             "{results}/snake_outs/{sample}_count_done.txt",
             results = RESULTS, sample = SAMPLES
         ),
-        # # Copy important output from scratch
-        # expand(
-        #     "{results}/snake_outs/{sample}_moved_files.txt",
-        #     results = RESULTS, sample = SAMPLES
-        # ),
+        # Copy important output from scratch
+        expand(
+            "{results}/snake_outs/{sample}_moved_files.txt",
+            results = RESULTS, sample = SAMPLES
+        ),
         # expand(
         #     "{results}/snake_outs/{group}_csv_aggr_done.txt",
         #     results = RESULTS, group = AGGR_GROUP
@@ -210,11 +372,11 @@ rule all:
         # expand(
         #     "{results}/snake_outs/{group}_cellranger_aggr_done.txt",
         #     results = RESULTS, group = AGGR_GROUP
-            # ),
-        # expand(
-        #     "{results}/run_scripts/{sample}_run.txt",
-        #     sample = script_name_dict.keys(), results = RESULTS
         #     ),
+        expand(
+            "{results}/run_scripts/{sample}_run.txt",
+            sample = script_name_dict.keys(), results = RESULTS
+            ),
 #         # expand(
 #         #     "{results}/logs/{sample}_velocyto_done.out",
 #         #     results = RESULTS, sample = SAMPLES
