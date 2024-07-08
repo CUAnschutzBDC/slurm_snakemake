@@ -43,6 +43,7 @@ rule merge_fastq:
 		8
 	shell:
 		"""
+		mkdir -p {params.out_dir}
 		cat {params.R1_fastqs} > {params.R1_out}
 		cat {params.R2_fastqs} > {params.R2_out}
 		touch {output}
