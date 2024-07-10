@@ -82,7 +82,21 @@ This may already be installed on your system
 | `batch_correction` | string | batch correction to use | What batch correction to use on a merged sample, set to `rna` (no correction), `mnn` (mutual nearest neighbor) or `harmony` (harmony). If this isn't a merged sample, set to `NA`. |
 
 ## Output files
-If you run all scripts in the repo, the following files will be made. All output files will be in `{results}/R_analysis/{sample}` where the `results` is the same as the `RESULTS_DIR` in the config and the `sample` is the same as the sample in `sample_info`
+If you run all scripts in the repo, the following files will be made. All output files will be in `{results}/R_analysis/{sample}` where the `results` is the same as the `RESULTS_DIR` in the config and the `sample` is the same as the sample in `sample_info`. Each of these directories has `images` (where all images are saved), `rda_obj` (where all rda objects are saved), and `files` (where all files are saved).
+
+| File name | Type | Description |
+|-----------|------|-------------|
+| **rda_obj** |
+| `rda_obj/seurat_unfilt.rds` | R object | The fully unprocesed seurat object, this will contain all cells output by cellranger |
+| `rda_obj/seurat_start.rds` | R object | The Seurat object where all low quality cells have been removed |
+| `rda_obj/seurat_doublet.rds` | R object | The Seurat object where doublets have been labed but not removed |
+| `rda_obj/seurat_processed.rds` | R object | The fully processed Seurat object. If the full pipeline has been run, this will include dimensionality reductions, clustering, and cell type identificaiton |
+| **images** |
+| `images/RNA_pca.pdf` | pdf file | Images associated with running the PCA. This includes genes associate with top PCs, PC 1 and 2 plotted and colored by QC metrics, jackstraw, and elbow plot. These are helpful for determining data quality and number of PCs for downstream analysis. |
+| `images/clustering_resolution.pdf` | pdf file | Images associated with clustering. Many clustering resolutions are run. This is a comparision of those different resoultions (showing how cells move between them) and all resolutions plotted on the UMAP. This is helpful for determining downstream resolutions |
+| `images/celltype_mapping.pdf` | pdf file | Images created when mapping the sample to referenes. This includes a heatmap showing correlation between your clusters and the reference and UMAPs colored by this new cell type identification. If many references are included, this will also include a UMAP based on the top hit from any reference. |
+| `images/testing_batch_correction.pdf`| pdf file | Only present if merging was done. This shows UMAPs of no correction, `mnn` correction, and `harmony` correction colored by cluster, celltype, and sample as well as a heatmap comparing the similarity of clusters identified after `mnn` and `harmony` batch correction. |
+
 
 ## R scripts
 
