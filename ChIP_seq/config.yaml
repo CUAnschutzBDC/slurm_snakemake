@@ -1,9 +1,8 @@
 ##### aligning information #####
 
-# The path to the scratch direcotry. Your username will be determined given that you
-# can view it with $USER
+# The path to the scratch direcotry.
 SCRATCH_DIR:
-    "/scratch/alpine"
+    "/scratch/alpine/kwellswrasman@xsede.org"
 
 # The path to your working directory. Leaving this blank will just make it so this full path
 # is in your scratch space
@@ -78,7 +77,7 @@ FASTQ_SCREEN_DATA:
 
 ##### Containers ######
 GENERAL_CONTAINER:
-  "docker/general_docker/chip.v2.sif"
+  "docker/general_docker/chip.v1.sif"
 
 
 # The container for running picard tools

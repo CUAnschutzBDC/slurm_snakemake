@@ -33,14 +33,10 @@ QVALUE            = config["QVALUE"]
 FASTQ_SCREEN      = config["FASTQ_SCREEN"]
 
 # Make the desired path in scratch
-#user_variable = os.environ.get('USER')
-user_variable = "kwellswrasman@xsede.org"
-scratch_dir = os.path.join(SCRATCH_DIR, user_variable)
-
 current_dir = os.getcwd()
 rel_path_to_home = os.path.relpath(current_dir, start=BASE_PATH)
 
-RESULTS2 = os.path.join(scratch_dir, rel_path_to_home, RESULTS)
+RESULTS2 = os.path.join(SCRATCH_DIR, rel_path_to_home, RESULTS)
 os.makedirs(RESULTS2, exist_ok = True)
 
 # Make fastq screen dir

@@ -5,7 +5,8 @@ args <- commandArgs(trailingOnly = TRUE)
 
 save_dir <- args[1]
 file_pattern <- "_S[0-9]+_L[0-9]*_R[1|2]_[0-9]*_screen.txt"
-all_files <-list.files(path = save_dir, pattern = file_pattern, full.names = FALSE)
+search_pattern <- ".*_screen.txt"
+all_files <-list.files(path = save_dir, pattern = search_pattern, full.names = FALSE)
 
 # Set theme
 ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
@@ -13,6 +14,9 @@ ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 all_results <- lapply(all_files, function(file_name){
 	#file_name <- "Input_1_S15_L006_R1_001_screen.txt"
 	sample <- gsub(file_pattern, "", file_name)
+
+	# In case the file pattern doesn't match, just remove the fastq screen
+	sample <- gsub(search_pattern, "", file_name)
 
 	file <- read.table(file.path(save_dir, file_name), sep = "\t",
 					fill = TRUE, comment.char = "", header = TRUE, 

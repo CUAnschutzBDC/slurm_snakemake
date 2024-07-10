@@ -24,4 +24,5 @@ snakemake \
     --jobs 12 \
     --latency-wait 60 \
     --rerun-incomplete \
-    --workflow-profile profiles/default 
+    --workflow-profile profiles/default \
+    --ignore-incomplete

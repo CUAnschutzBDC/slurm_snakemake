@@ -41,7 +41,8 @@ rule macs2:
         genome_size = GENOME_SIZE,
         paired      = IS_PAIRED,
         output_path = "{results}/macs2_{trim_method}_trim/{sample}",
-        qvalue      = QVALUE
+        qvalue      = QVALUE,
+        temp_dir    = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim", "{sample}")
     resources:
         slurm_extra=lambda wildcards: (
             f"--output={wildcards.results}/logs/macs2/macs2_{wildcards.sample}_{wildcards.trim_method}_trim.out "
@@ -51,6 +52,7 @@ rule macs2:
        GENERAL_CONTAINER    
     shell:
         """
+        mkdir -p {params.temp_dir}
         if [ {params.paired} ]
         then
             file_type="BAMPE"
@@ -63,7 +65,8 @@ rule macs2:
             -g {params.genome_size} \
             -n {params.output_path} \
             -f $file_type \
-            -q {params.qvalue}
+            -q {params.qvalue} \
+            --tempdir {params.temp_dir}
         """
 
 rule overlapping_peaks:
