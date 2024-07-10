@@ -36,7 +36,7 @@ SCRIPTS_RUN     = config["SCRIPTS_RUN"]
 SAMPLE_SCRIPTS  = config["SAMPLE_SCRIPTS"]
 MERGE_SCRIPTS   = config["MERGE_SCRIPTS"]
 SAMPLE_INFO    = config["SAMPLE_INFO"]
-SLURM_TEMPLATE = config["SLURM_TEMPLATE"]
+CLUSTER_TEMPLATE = config["CLUSTER_TEMPLATE"]
 SUBSET_SCRIPTS  = config["SUBSET_SCRIPTS"]
 
 #CELLRANGER_PATH = config["CELLRANGER_PATH"]
@@ -62,10 +62,12 @@ def setup_scratch(base_path: str, scratch_dir: str, results_dir: str) -> str:
     Returns the variable with this new path
     """
     current_dir = os.getcwd()
-    rel_path_to_home = os.path.relpath(current_dir, start=base_path)
-
-    results2 = os.path.join(scratch_dir, rel_path_to_home, results_dir)
-    os.makedirs(results2, exist_ok = True)
+    if (scratch_dir == ""):
+        results2 = results
+    else:
+        rel_path_to_home = os.path.relpath(current_dir, start=base_path)
+        results2 = os.path.join(scratch_dir, rel_path_to_home, results_dir)
+        os.makedirs(results2, exist_ok = True)
 
     return results2
 
@@ -341,7 +343,10 @@ CHEMISTRY = make_chemsitry_dict(SAMPLES, CHEMISTRY)
 RAW_DATA_DICT = create_raw_data_dict(SAMPLES, RAW_DATA)
 RESULTS = ensure_directory_exists(RESULTS)
 FASTQ_DIR = ensure_directory_exists(os.path.join(RESULTS2, "fastqs"))
-SLURM_TEMPLATE = _check_path(SLURM_TEMPLATE)
+if CLUSTER_TEMPLATE:
+    CLUSTER_TEMPLATE = _check_path(CLUSTER_TEMPLATE)
+else:
+    CLUSTER_TEMPLATE = "local"
 
 AGGR_GROUP = AGGR_GROUP or "none"
 VELOCYTO_GROUP = VELOCYTO_GROUP or "none"

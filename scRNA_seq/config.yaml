@@ -8,7 +8,7 @@ SCRATCH_DIR:
 # The path to your working directory. Leaving this blank will just make it so this full path
 # is in your scratch space
 BASE_PATH:
-    "/pl/active/"
+    "/pl/active/Anschutz_BDC"
     
 # Path to the fastq directory, multiple directories can be given.
 RAW_DATA:
@@ -86,8 +86,8 @@ VDJ_REF:
 MAX_JOBS:
     24
 
-# Path to an LSF template, this is optional.
-SLURM_TEMPLATE:
+# Path to an cluster template, this is optional.
+CLUSTER_TEMPLATE:
     "slurm.template"
 
 # Arguments to pass for chemistry. Only use this if the run failed.

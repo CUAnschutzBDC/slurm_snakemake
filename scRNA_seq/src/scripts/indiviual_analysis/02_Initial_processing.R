@@ -8,44 +8,11 @@ library(here)
 library(openxlsx)
 library(djvdj)
 
+source(here("src/scripts/common_setup.R"))
 
-# Set theme
-ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+# TODO add in fix here for human/mouse
+mt_pattern <- "^MT-" # "^MT-" for human, "^mt-" for mice
 
-normalization_method <- "log" # can be SCT or log
-
-args <- commandArgs(trailingOnly = TRUE)
-
-sample <- args[[1]]
-sample <- gsub("__.*", "", sample)
-#sample <- "Npod6553_PLN"
-
-sample_info <- args[[3]]
-#sample_info <- here("files/sample_info.tsv")
-
-results_dir <- args[[2]]
-#results_dir <- here("results")
-
-sample_info <- read.table(sample_info, fill = TRUE, header = TRUE)
-
-sample_info <- sample_info[sample_info$sample == sample,]
-
-HTO <- sample_info$HTO
-ADT <- sample_info$ADT
-hash_ident <- sample_info$hash_ident
-
-if(normalization_method == "SCT"){
-  SCT <- TRUE
-  seurat_assay <- "SCT"
-} else {
-  SCT <- FALSE
-  seurat_assay <- "RNA"
-}
-
-vars.to.regress <- NULL
-
-# Set directories
-save_dir <- file.path(results_dir, "R_analysis", sample)
 
 # Make directories
 ifelse(!dir.exists(save_dir), dir.create(save_dir, recursive = TRUE), FALSE)
@@ -59,8 +26,6 @@ ifelse(!dir.exists(file.path(save_dir, "files")),
 ifelse(!dir.exists(file.path(save_dir, "rda_obj")),
        dir.create(file.path(save_dir, "rda_obj")), FALSE)
 
-mt_pattern <- "^MT-" # "^MT-" for human, "^mt-" for mice
-
 # Create seurat object ---------------------------------------------------------
 seurat_object <- create_seurat_object(sample = sample,
                                       count_path = results_dir,
@@ -73,19 +38,7 @@ seurat_object <- create_seurat_object(sample = sample,
 seurat_object[["percent.mt"]] <- PercentageFeatureSet(seurat_object,
                                                       pattern = mt_pattern)
 
-# Add in scar counts -----------------------------------------------------------
-scar_counts <- read.csv(file.path(save_dir,
-                                  "files", "scar_denoised.csv"),
-                        row.names = 1) %>%
-  t()
 
-scar_counts <- scar_counts[ , colnames(scar_counts) %in%
-                             colnames(seurat_object)]
-
-seurat_object[["SCAR_ADT"]] <- CreateAssayObject(counts = scar_counts)
-
-seurat_object <- NormalizeData(seurat_object, assay = "SCAR_ADT",
-                               normalization.method = "LogNormalize")
   
 # Use scuttle for cutoffs ------------------------------------------------------
 se <- as.SingleCellExperiment(seurat_object)
@@ -108,9 +61,23 @@ rna_qual <- featDistPlot(seurat_object,
                           plot_type = "violin", col_by = "cell_qc_discard")
 
 if(ADT){
+  # Add in scar counts ---------------------------------------------------------
+  scar_counts <- read.csv(file.path(save_dir,
+                                    "files", "scar_denoised.csv"),
+                          row.names = 1) %>%
+    t()
+
+  scar_counts <- scar_counts[ , colnames(scar_counts) %in%
+                              colnames(seurat_object)]
+
+  seurat_object[["SCAR_ADT"]] <- CreateAssayObject(counts = scar_counts)
+
+  seurat_object <- NormalizeData(seurat_object, assay = "SCAR_ADT",
+                                normalization.method = "CLR",
+                                margin = 2)
+
   adt_qual <- featDistPlot(seurat_object,
-                            geneset = c("nFeature_ADT", "nCount_ADT",
-                                        "percent.mt"),
+                            geneset = c("nFeature_ADT", "nCount_ADT"),
                             plot_type = "violin", col_by = "cell_qc_discard")
 }
 
@@ -142,31 +109,48 @@ seurat_object <- NormalizeData(seurat_object) %>%
   ScaleData(vars.to.regress = vars.to.regress)
 
 # Add in cell cycle
+# TODO add in fix here for human/mouse
 seurat_object <- CellCycleScoring(seurat_object, 
                                   g2m.features = cc.genes$g2m.genes,
                                   s.features = cc.genes$s.genes)
 
 
 # VDJ --------------------------------------------------------------------------
+add_vdj <- function(results_dir, sample, seurat_object, vdj_type){
+  if (vdj_type == "VDJ_B"){
+    out_dir <- "vdj_b"
+    prefix <- "bcr_"
+  } else if (vdj_type == "VDJ_T"){
+    out_dir <- "vdj_t"
+    prefix <- "tcr_"
+  } else {
+    stop("vdj_type should be VDJ_B or VDJ_T")
+  }
+  vdj_dir <- file.path(results_dir, sample, "outs", "per_sample_outs",
+                       sample, out_dir)
+
+  seurat_object <- import_vdj(input = seurat_object,
+                              vdj_dir = vdj_dir,
+                              prefix = prefix,
+                              filter_paired = FALSE,
+                              include_mutations = TRUE)
+
+  return(seurat_object)
+}
 # Read in VDJ data
-vdj_dir_b <- file.path(results_dir, sample, "outs/per_sample_outs",
-                       sample, "vdj_b")
+if (VDJ_B){
+  seurat_object <- add_vdj(results_dir = results_dir,
+                           sample = sample,
+                           seurat_object = seurat_object,
+                           vdj_type = "VDJ_B")
+}
 
-vdj_dir_t <- file.path(results_dir, sample, "outs/per_sample_outs",
-                       sample, "vdj_t")
-
-seurat_object <- import_vdj(input = seurat_object,
-                            vdj_dir = vdj_dir_b,
-                            prefix = "bcr_",
-                            filter_paired = FALSE,
-                            include_mutations = TRUE)
-
-
-seurat_object <- import_vdj(input = seurat_object,
-                            vdj_dir = vdj_dir_t,
-                            prefix = "tcr_",
-                            filter_paired = FALSE,
-                            include_mutations = TRUE)
+if (VDJ_T){
+  seurat_object <- add_vdj(results_dir = results_dir,
+                           sample = sample,
+                           seurat_object = seurat_object,
+                           vdj_type = "VDJ_T")
+}
 
 saveRDS(seurat_object, file = file.path(save_dir, "rda_obj",
                                         "seurat_start.rds"))

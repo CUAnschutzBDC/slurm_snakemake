@@ -4,43 +4,7 @@ library(tidyverse)
 library(here)
 library(scAnalysisR)
 
-# Set theme
-ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
-
-normalization_method <- "log" # can be SCT or log
-
-args <- commandArgs(trailingOnly = TRUE)
-
-sample <- args[[1]]
-sample <- gsub("__.*", "", sample)
-#sample <- "Npod6456_PLN"
-
-sample_info <- args[[3]]
-#sample_info <- here("files/sample_info.tsv")
-
-results_dir <- args[[2]]
-#results_dir <- here("results")
-
-
-sample_info <- read.table(sample_info, fill = TRUE, header = TRUE)
-
-sample_info <- sample_info[sample_info$sample == sample,]
-
-HTO <- sample_info$HTO
-ADT <- sample_info$ADT
-hash_ident <- sample_info$hash_ident
-
-
-if(normalization_method == "SCT"){
-  SCT <- TRUE
-  seurat_assay <- "SCT"
-} else {
-  SCT <- FALSE
-  seurat_assay <- "RNA"
-}
-
-# Set directories
-save_dir <- file.path(results_dir, "R_analysis", sample)
+source(here("src/scripts/common_setup.R"))
 
 # Read in data
 seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_start.rds"))
@@ -163,10 +127,6 @@ pdf(file.path(save_dir, "images", "doublet_finder.pdf"))
 
 print(plotDimRed(seurat_data, col_by = "Doublet_finder",
                  plot_type = "rna.umap"))
-print(plotDimRed(seurat_data, col_by = "JCHAIN", plot_type = "rna.umap"))
-
-print(plotDimRed(seurat_data, col_by = "CD3D", plot_type = "rna.umap"))
-
 dev.off()
 
 saveRDS(seurat_data, file.path(save_dir, "rda_obj", "seurat_doublet.rds"))

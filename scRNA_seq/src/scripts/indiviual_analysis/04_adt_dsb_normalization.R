@@ -4,32 +4,11 @@ library(tidyverse)
 library(here)
 library(scAnalysisR)
 
-args <- commandArgs(trailingOnly = TRUE)
-
-sample <- args[[1]]
-sample <- gsub("__.*", "", sample)
-#sample <- "Npod6456_PLN"
-
-sample_info <- args[[3]]
-#sample_info <- here("files/sample_info.tsv")
-
-results_dir <- args[[2]]
-#results_dir <- here("results")
-
-sample_info <- read.table(sample_info, fill = TRUE, header = TRUE)
-
-sample_info <- sample_info[sample_info$sample == sample,]
-
-HTO <- sample_info$HTO
-ADT <- sample_info$ADT
-hash_ident <- sample_info$hash_ident
-
-# Set directories
-save_dir <- file.path(results_dir, "R_analysis", sample)
+source(here("src/scripts/common_setup.R"))
 
 # Load in raw data
 sample_path <- file.path(results_dir, sample, "outs", "per_sample_outs", 
-		                         sample, "count", "raw_feature_bc_matrix")
+		                     sample, "count", "raw_feature_bc_matrix")
 
 sample_data <- Read10X(data.dir = sample_path)
 if(ADT){

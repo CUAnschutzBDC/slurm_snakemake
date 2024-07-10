@@ -7,300 +7,209 @@ library(scAnalysisR)
 library(viridis)
 library(clustifyr)
 
-# Set theme
-ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
-
-normalization_method <- "log" # can be SCT or log
-
-cor_cutoff <- 0.5
-
-all_ref_dir <-
-  "/pl/active/Anschutz_BDC/resources/single_cell_references"
-
-# Set theme
-ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
-
-normalization_method <- "log" # can be SCT or log
-
-args <- commandArgs(trailingOnly = TRUE)
-
-sample <- args[[1]]
-sample <- gsub("__.*", "", sample)
-#sample <- "Npod6456_PLN"
-
-sample_info <- args[[3]]
-#sample_info <- here("files/sample_info.tsv")
-
-results_dir <- args[[2]]
-#results_dir <- here("results")
-
-sample_info <- read.table(sample_info, fill = TRUE, header = TRUE)
-
-sample_info <- sample_info[sample_info$sample == sample,]
-
-HTO <- sample_info$HTO
-ADT <- sample_info$ADT
-hash_ident <- sample_info$hash_ident
-
-ADT_pca <- sample_info$adt_pca
-run_adt_umap <- sample_info$adt_umap
-
-RNA_pcs <- sample_info$PCs
-resolution <- sample_info$resolution
-
-
-if(normalization_method == "SCT"){
-  SCT <- TRUE
-  seurat_assay <- "SCT"
-} else {
-  SCT <- FALSE
-  seurat_assay <- "RNA"
-}
-
-# Set directories
-save_dir <- file.path(results_dir, "R_analysis", sample)
+source(here("src/scripts/common_setup.R"))
 
 # Read in data
 seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
 
-# Work around because I'm too lazy to update my code
-seurat_data@reductions$adt.umap <- seurat_data@reductions$pdsb.umap
-#-------------------------------------------------------------------------------
+reference_configs <- list(
+  list(
+    ref_dir = file.path(all_ref_dir, "pbmc/seurat"),
+    ref_file = "clustifyr_reference_l2.csv",
+    save_name = "celltype_seurat"
+  ),
+  list(
+    ref_dir = "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/files/210825_object",
+    ref_file = "clustifyr_reference.csv",
+    save_name = "celltype_bnd"
+  )
+  # Add more reference configurations as needed
+)
 
-# NOTE update the section below to include any references pertanent to your
-# sample.
+if (ADT){
+  # Work around because I'm too lazy to update my code
+  seurat_data@reductions$adt.umap <- seurat_data@reductions$pdsb.umap
+}
 
-################
-# Seurat pbmc #
-###############
+cluster_data <- function(seurat_data, ref_mat, save_dir, save_name,
+                         ADT, run_adt_umap, mapping_wb, VDJ = FALSE){
 
-# Information for cell mapping
-ref_dir <- file.path(all_ref_dir, "pbmc/seurat")
+  if (VDJ) {
+    features <- VariableFeatures(seurat_data)
+  } else {
+    features <- NULL
+  }
+  # Name the clusters
+  cluster_res <- name_clusters(seurat_data, ref_mat,
+                               save_dir = save_dir,
+                               save_name = save_name, ADT = ADT,
+                               assay = "RNA",
+                               nfeatures = 1000, clusters = "RNA_cluster",
+                               plot_type = "rna.umap",
+                               features = features)
 
-ref_mat <- read.csv(file.path(ref_dir, "clustifyr_reference_l2.csv"),
-                    header = TRUE, row.names = 1)
+  # Pull out the data
+  seurat_data <- cluster_res$object
+  res_rna <- cluster_res$RNA
 
+  return_list <- list(object = seurat_data, rna = res_rna)
+
+  # Figure out the meta data column
+  all_celltypes <- c(paste0("RNA_", save_name))
+
+  # write to excel
+  write_excel(wb = mapping_wb, sheet_name = paste0(save_name, "_rna"), data = res_rna)
+
+  # Repeat for ADT
+  if (ADT & run_adt_umap) {
+
+    # Pull out cell types determined based on ADT and WNN clustering
+    res_adt <- cluster_res$ADT
+    res_wnn <- cluster_res$WNN
+
+    return_list <- c(return_list, list(adt = res_adt, wnn = res_wnn))
+
+    plot_violins(save_name, seurat_data)
+
+    # Add ADT data to the excel file
+    write_excel(wb = mapping_wb, sheet_name = paste0(save_name, "_adt"), data = res_adt)
+    write_excel(wb = mapping_wb, sheet_name = paste0(save_name, "_combined"), data = res_wnn)
+  }
+
+  grid::grid.newpage()
+
+  print(plotDimRed(seurat_data, col_by = all_celltypes,
+                  plot_type = "rna.umap"))
+
+  return(return_list)
+
+}
+
+plot_violins <- function(save_name, seurat_data) {
+  # Find meta data columns
+  all_celltypes <- c(all_celltypes,
+                    c(paste0("ADT_", save_name),
+                      paste0("combined_", save_name)))
+
+  # Find all ADTs
+  DefaultAssay(seurat_data) <- "ADT"
+
+  all_adts <- rownames(seurat_data)
+
+  DefaultAssay(seurat_data) <- "RNA"
+
+  # Plot ADTs across all types of the cell type calls
+  all_violins <- featDistPlot(seurat_data, geneset = all_adts,
+                              col_by = paste("RNA_", save_name),
+                              sep_by = paste("RNA_", save_name),
+                              combine = FALSE)
+
+  print(all_violins)
+
+  all_violins <- featDistPlot(seurat_data, geneset = all_adts,
+                              col_by = paste("ADT_", save_name),
+                              sep_by = paste("ADT_", save_name),
+                              combine = FALSE)
+
+  print(all_violins)
+
+  all_violins <- featDistPlot(seurat_data, geneset = all_adts,
+                              col_by = paste("combined_", save_name),
+                              sep_by = paste("combined_", save_name),
+                              combine = FALSE)
+  print(all_violins)
+
+}
+
+write_excel <- function(wb, sheet_name, data) {
+  openxlsx::addWorksheet(wb = wb, sheetName = sheet_name)
+  openxlsx::writeData(wb = wb, sheet = sheet_name,
+                      x = data)
+}
+
+process_all_references <- function(seurat_data, reference_configs, save_dir,
+                                   ADT, run_adt_umap, VDJ, mapping_wb) {
+  results <- list()
+  
+  for (config in reference_configs) {
+    ref_mat <- read.csv(file.path(config$ref_dir, config$ref_file), header = TRUE, row.names = 1)
+    
+    res <- cluster_data(seurat_data = seurat_data, 
+                        ref_mat = ref_mat, 
+                        save_dir = save_dir,
+                        save_name = config$save_name, 
+                        ADT = ADT, 
+                        run_adt_umap = run_adt_umap,
+                        VDJ = VDJ, 
+                        mapping_wb = mapping_wb)
+
+    seurat_data <- res$object
+    res$object <- NULL
+    results[[config$save_name]] <- res
+  }
+  
+  return(list(results = results, final_object = seurat_data))
+}
+
+# References ----------------------------------------------------------------
+# Create a workbook
+mapping_wb <- openxlsx::createWorkbook()
+
+# Open a PDF
 pdf(file.path(save_dir, "images", "celltype_mapping.pdf"))
 
-cluster_res <- name_clusters(seurat_data, ref_mat,
-                             save_dir = save_dir,
-                             save_name = "celltype_seurat", ADT = TRUE,
-                             assay = "RNA",
-                             nfeatures = 1000, clusters = "RNA_cluster",
-                             plot_type = "rna.umap",
-                             features = VariableFeatures(seurat_data))
+if (VDJ_B | VDJ_T) {
+  VDJ <- TRUE
+} else {
+  VDJ <- FALSE
+}
 
-seurat_data <- cluster_res$object
+all_results <- process_all_references(seurat_data, reference_configs, save_dir,
+                                      ADT, run_adt_umap, VDJ, mapping_wb)
 
-seurat_res_seurat_rna <- cluster_res$RNA
-seurat_res_seurat_adt <- cluster_res$ADT
-seurat_res_seurat_wnn <- cluster_res$WNN
-
-
-grid::grid.newpage()
-
-all_celltypes <- c("RNA_celltype_seurat",
-                   "ADT_celltype_seurat",
-                   "combined_celltype_seurat")
-
-print(plotDimRed(seurat_data, col_by = all_celltypes,
-                 plot_type = "rna.umap"))
-# 
-# cm <- confusionMatrix(seurat_data$RNA_celltype_seurat,
-#                       seurat_data$ADT_celltype_seurat)
-# 
-# cm <- cm /rowSums(cm)
-# pheatmap::pheatmap(cm)
-
-DefaultAssay(seurat_data) <- "ADT"
-
-all_adts <- rownames(seurat_data)
-
-DefaultAssay(seurat_data) <- "RNA"
-
-
-all_violins <- featDistPlot(seurat_data, geneset = all_adts,
-                            col_by = "RNA_celltype_seurat",
-                            sep_by = "RNA_celltype_seurat",
-                            combine = FALSE)
-
-print(all_violins)
-
-all_violins <- featDistPlot(seurat_data, geneset = all_adts,
-                            col_by = "ADT_celltype_seurat",
-                            sep_by = "ADT_celltype_seurat",
-                            combine = FALSE)
-
-print(all_violins)
-
-all_violins <- featDistPlot(seurat_data, geneset = all_adts,
-                            col_by = "combined_celltype_seurat",
-                            sep_by = "combined_celltype_seurat",
-                            combine = FALSE)
-
-print(all_violins)
-
-
-mapping_wb <- openxlsx::createWorkbook()
-openxlsx::addWorksheet(wb = mapping_wb, sheetName = "seurat_rna")
-openxlsx::writeData(wb = mapping_wb, sheet = "seurat_rna",
-                    x = seurat_res_seurat_rna)
-openxlsx::addWorksheet(wb = mapping_wb, sheetName = "seurat_adt")
-openxlsx::writeData(wb = mapping_wb, sheet = "seurat_adt",
-                    x = seurat_res_seurat_adt)
-openxlsx::addWorksheet(wb = mapping_wb, sheetName = "seurat_combined")
-openxlsx::writeData(wb = mapping_wb, sheet = "seurat_combined",
-                    x = seurat_res_seurat_wnn)
-
-
-
-#-------------------------------------------------------------------------------
-
-####################
-# Published object #
-####################
-
-ref_dir <- "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/files/210825_object"
-
-
-ref_mat <- read.csv(file.path(ref_dir, "clustifyr_reference.csv"),
-                    header = TRUE, row.names = 1)
-
-DefaultAssay(seurat_data) <- "RNA"
-
-grid::grid.newpage()
-
-cluster_res <- name_clusters(seurat_data, ref_mat,
-                             save_dir = save_dir,
-                             save_name = "celltype_bnd", ADT = TRUE,
-                             assay = "RNA",
-                             features = VariableFeatures(seurat_data),
-                             clusters = "RNA_cluster",
-                             plot_type = "rna.umap")
-
-seurat_data <- cluster_res$object
-
-seurat_res_bnd_rna <- cluster_res$RNA
-seurat_res_bnd_adt <- cluster_res$ADT
-seurat_res_bnd_wnn <- cluster_res$WNN
-
-
-grid::grid.newpage()
-
-new_colors <- c("Resting_memory" = "#924bdb", # Resting memory
-                "Naive_1" = "#69ba3d", # Naive 1
-                "Naive_2" = "#9a43a4", # Naive 2
-                "Memory_IgE_IgG" = "#bf9b31", # Memory IgE/IgG1
-                "Naive_3" = "#6477ce", # Naive 3
-                "Memory_IgA" = "#d15131", # Memory IA
-                "Early_memory" = "#4c9e8e", # Early Memory
-                "BND2" = "#cc4570", #Bnd2
-                "DN2" = "#648d4f", # DN2
-                "Activated_memory" = "#985978", # Activated memory
-                "Activated_naive" = "#a06846") # Activated naive
-
-all_celltypes <- c("RNA_celltype_bnd",
-                   "ADT_celltype_bnd",
-                   "combined_celltype_bnd")
-
-print(plotDimRed(seurat_data, col_by = all_celltypes,
-                 plot_type = "rna.umap", color = new_colors))
-
-openxlsx::addWorksheet(wb = mapping_wb, sheetName = "bnd_rna")
-openxlsx::writeData(wb = mapping_wb, sheet = "bnd_rna",
-                    x = seurat_res_bnd_rna)
-openxlsx::addWorksheet(wb = mapping_wb, sheetName = "bnd_adt")
-openxlsx::writeData(wb = mapping_wb, sheet = "bnd_adt",
-                    x = seurat_res_bnd_adt)
-openxlsx::addWorksheet(wb = mapping_wb, sheetName = "bnd_combined")
-openxlsx::writeData(wb = mapping_wb, sheet = "bnd_combined",
-                    x = seurat_res_bnd_wnn)
-
-#-------------------------------------------------------------------------------
+seurat_data <- all_results$final_object
+## merged ---------------------------------------------------------------------------
 
 # Merge dfs
 
-merge_dfs <- function(res1, res2, seurat_object, save_name, cluster_col){
-  seurat_res <- cbind(res1, res2)
+merge_dfs <- function(res_list, seurat_object, save_name, cluster_col){
+  full_res <- do.call(cbind, res_list)
   
-  seurat_cluster <- cor_to_call(seurat_res) %>% 
+  full_celltype <- cor_to_call(full_res) %>% 
     mutate(type = ifelse(r < cor_cutoff, "undetermined", type))
   
   
-  new_clusters <- seurat_cluster$type
-  names(new_clusters) <- seurat_cluster$cluster
+  new_clusters <- full_celltype$type
+  names(new_clusters) <- full_celltype$cluster
   seurat_object[[save_name]] <- new_clusters[seurat_data[[cluster_col]][[1]]]
   return(seurat_object)
 }
 
-seurat_data <- merge_dfs(seurat_object = seurat_data,
-                         res1 = seurat_res_seurat_rna,
-                         res2 = seurat_res_bnd_rna,
-                         save_name = "RNA_celltype",
-                         cluster_col = "RNA_cluster")
+merge_rna_results <- function(all_results, seurat_object) {
+  rna_results <- lapply(all_results$results, function(x) x$rna)
+  merged_rna <- merge_dfs(rna_results, seurat_object, "RNA_celltype", "RNA_cluster")
+  return(merged_rna)
+}
 
-seurat_data <- merge_dfs(seurat_object = seurat_data,
-                         res1 = seurat_res_seurat_adt,
-                         res2 = seurat_res_bnd_adt,
-                         save_name = "ADT_celltype",
-                         cluster_col = "ADT_cluster")
+merge_adt_results <- function(all_results, seurat_object) {
+  adt_results <- lapply(all_results$results, function(x) x$adt)
+  merged_adt <- merge_dfs(adt_results, seurat_object, "ADT_celltype", "ADT_cluster")
+  return(merged_adt)
+}
 
-seurat_data <- merge_dfs(seurat_object = seurat_data,
-                         res1 = seurat_res_seurat_wnn,
-                         res2 = seurat_res_bnd_wnn,
-                         save_name = "combined_celltype",
-                         cluster_col = "combined_cluster")
+merge_wnn_results <- function(all_results, seurat_object) {
+  wnn_results <- lapply(all_results$results, function(x) x$wnn)
+  merged_wnn <- merge_dfs(wnn_results, seurat_object, "combined_celltype", "combined_cluster")
+  return(merged_wnn)
+}
 
-all_celltypes <- c("RNA_celltype",
-                   "ADT_celltype",
-                   "combined_celltype")
+final_seurat_object <- merge_rna_results(all_results, final_seurat_object)
+if (ADT) {
+  final_seurat_object <- merge_adt_results(all_results, final_seurat_object)
+  final_seurat_object <- merge_wnn_results(all_results, final_seurat_object)
+}
 
-print(plotDimRed(seurat_data, col_by = all_celltypes,
-                 plot_type = "rna.umap"))
-
-
-
-all_violins <- featDistPlot(seurat_data, geneset = all_adts,
-                            col_by = "RNA_celltype",
-                            sep_by = "RNA_celltype",
-                            combine = FALSE)
-
-print(all_violins)
-
-all_violins <- featDistPlot(seurat_data, geneset = all_adts,
-                            col_by = "ADT_celltype",
-                            sep_by = "ADT_celltype",
-                            combine = FALSE)
-
-print(all_violins)
-
-all_violins <- featDistPlot(seurat_data, geneset = all_adts,
-                            col_by = "combined_celltype",
-                            sep_by = "combined_celltype",
-                            combine = FALSE)
-
-print(all_violins)
-
-all_violins <- featDistPlot(seurat_data, geneset = all_adts,
-                            col_by = "RNA_celltype",
-                            sep_by = "RNA_cluster",
-                            combine = FALSE)
-
-print(all_violins)
-
-all_violins <- featDistPlot(seurat_data, geneset = all_adts,
-                            col_by = "ADT_celltype",
-                            sep_by = "ADT_cluster",
-                            combine = FALSE)
-
-print(all_violins)
-
-all_violins <- featDistPlot(seurat_data, geneset = all_adts,
-                            col_by = "combined_celltype",
-                            sep_by = "combined_cluster",
-                            combine = FALSE)
-
-print(all_violins)
+plot_violins(save_name = "celltype", seurat_data = seurat_data)
 
 dev.off()
 

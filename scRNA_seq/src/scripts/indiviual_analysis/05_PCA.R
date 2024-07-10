@@ -6,56 +6,15 @@ library(here)
 library(scAnalysisR)
 library(clustree)
 
+source(here("src/scripts/common_setup.R"))
+
 # Look at comment in github for why I made this decision
 remove_df_doublets <- TRUE
-
-vars.to.regress <- NULL
-
-
-# Set theme
-ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
-
-normalization_method <- "log" # can be SCT or log
-
-args <- commandArgs(trailingOnly = TRUE)
-
-sample <- args[[1]]
-sample <- gsub("__.*", "", sample)
-#sample <- "Npod6456_PLN"
-
-sample_info <- args[[3]]
-#sample_info <- here("files/sample_info.tsv")
-
-results_dir <- args[[2]]
-#results_dir <- here("results")
-
-sample_info <- read.table(sample_info, fill = TRUE, header = TRUE)
-
-sample_info <- sample_info[sample_info$sample == sample,]
-
-HTO <- sample_info$HTO
-ADT <- sample_info$ADT
-hash_ident <- sample_info$hash_ident
-
-adt_PCA <- sample_info$adt_pca
-run_adt_umap <- sample_info$adt_umap
-
-
-if(normalization_method == "SCT"){
-  SCT <- TRUE
-  seurat_assay <- "SCT"
-} else {
-  SCT <- FALSE
-  seurat_assay <- "RNA"
-}
-
-# Set directories
-save_dir <- file.path(results_dir, "R_analysis", sample)
 
 # Read in data
 seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_adt.rds"))
 
-if(remove_df_doublets){
+if (remove_df_doublets) {
   # Remove doublet finder doublets
   Idents(seurat_data) <- "Doublet_finder"
   seurat_data <- subset(x = seurat_data, idents = "Singlet")  
@@ -63,25 +22,28 @@ if(remove_df_doublets){
 
 
 # Remove HTO doublets
-if(HTO){
+if (HTO) {
   Idents(seurat_data) <- "HTO_classification.global"
   seurat_data <- subset(x = seurat_data, idents = "Singlet")
 }
 
+# Repeat initial processing
 seurat_data <- seurat_data %>%
   FindVariableFeatures() %>%
   ScaleData(vars.to.regress = vars.to.regress)
 
 # Update variable features
-# Remove B cell chains
-VariableFeatures(seurat_data) <- VariableFeatures(seurat_data)[!grepl("IG[H|L|K]",
-                                                                      VariableFeatures(seurat_data))]
+if (VDJ_B) {
+  # Remove B cell chains
+  VariableFeatures(seurat_data) <- VariableFeatures(seurat_data)[!grepl("IG[H|L|K]",
+                                                                        VariableFeatures(seurat_data))]
+}
 
-# Remove T cell chains
-VariableFeatures(seurat_data) <- VariableFeatures(seurat_data)[!grepl("TR[A|B][V|J|C]",
-                                                                      VariableFeatures(seurat_data))]
-
-
+if (VDJ_T) {
+  # Remove T cell chains
+  VariableFeatures(seurat_data) <- VariableFeatures(seurat_data)[!grepl("TR[A|B][V|J|C]",
+                                                                        VariableFeatures(seurat_data))]
+}
 
 # PCA --------------------------------------------------------------------------
 

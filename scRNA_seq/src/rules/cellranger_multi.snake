@@ -288,7 +288,7 @@ rule cellranger_count:
         max_jobs   = MAX_JOBS,
         barcodes   = ADT_REF,
         scratch    = RESULTS2,
-        slurm      = SLURM_TEMPLATE,
+        template   = CLUSTER_TEMPLATE,
         run_type   = _find_run_type,
         cellranger = CELLRANGER_PATH
     resources:
@@ -313,7 +313,7 @@ rule cellranger_count:
             {params.cellranger} multi \
                 --id={wildcards.sample} \
                 --csv=$sample_csv \
-                --jobmode={params.slurm} \
+                --jobmode={params.template} \
                 --maxjobs={params.max_jobs} \
                 --create-bam true
 
@@ -330,7 +330,7 @@ rule cellranger_count:
                 --libraries=$sample_csv \
                 --feature-ref=$ab_csv \
                 --transcriptome={params.genome} \
-                --jobmode={params.slurm} \
+                --jobmode={params.template} \
                 --maxjobs={params.max_jobs} \
                 --create-bam true
         
@@ -344,7 +344,7 @@ rule cellranger_count:
                 --libraries=$sample_csv \
                 --transcriptome={params.genome} \
                 --create-bam true \
-                --jobmode={params.slurm} \
+                --jobmode={params.template} \
                 --maxjobs={params.max_jobs}
 
 

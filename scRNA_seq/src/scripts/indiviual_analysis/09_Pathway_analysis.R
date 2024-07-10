@@ -9,19 +9,9 @@ library(gprofiler2)
 library(scAnalysisR)
 library(here)
 
+source(here("src/scripts/common_setup.R"))
 
-pval <- 0.05
-logfc <- 0.5
-
-# Set theme
-ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
-
-sample <- "sample"
-cell_types <- "combined_celltype"
-clusters <- "combined_cluster"
-
-gen_id <- "hsa"
-
+# Update this with any pathways you would like to visiualize
 path_id_list <- c(NFKB_sig_path = "04064", T_cell_receptor = "04660",
                   cytokine_receptor_interaction = "04060",
                   cell_adhesion = "04514", Hematopoitic_lineage = "04640",
@@ -29,25 +19,35 @@ path_id_list <- c(NFKB_sig_path = "04064", T_cell_receptor = "04660",
                   th1_th2_differentiation = "04658", TNF_signaling = "04668",
                   immunodeficiency = "05340", Th17_differentiation = "04659")
 
-normalization_method <- "log" # can be SCT or log
+gen_id <- "hsa"
 
+# Set to TRUE if you needed to set cell types manually, also
+# name the manual cell types "final_celltype"
+manual_cell_types <- FALSE
 
-if(normalization_method == "SCT"){
-  SCT <- TRUE
-  seurat_assay <- "SCT"
+# First, determine the clusters
+if (ADT & run_adt_umap) {
+  clusters <- "combined_cluster"
 } else {
-  SCT <- FALSE
-  seurat_assay <- "RNA"
+  clusters <- "RNA_cluster"
 }
 
-# Set directories
-base_dir <- here()
+# Then, determine the cell types
+if (manual_cell_types) {
+  cell_types <- "final_celltype"
+} else if (ADT & run_adt_umap) {
+  cell_types <- "combined_celltype"
+} else {
+  cell_types <- "RNA_celltype"
+}
 
-source(file.path(base_dir, "src", "scripts", "functions.R"))
+pval <- 0.05
+logfc <- 0.5
 
-base_dir_proj <- file.path(base_dir, "results", sample)
+# Read in data
+seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
 
-save_dir <- file.path(base_dir_proj, "R_analysis")
+save_dir <- here("results", "R_analysis", sample)
 
 out_dir <- file.path(save_dir, "images", "pathways")
 
