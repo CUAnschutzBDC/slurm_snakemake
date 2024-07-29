@@ -103,7 +103,7 @@ closest_index <- which.min(differences)
 # Retrieve the closest number from the vector
 expected_proportion <- as.numeric(multiplet_mapping[closest_index])
 
-nExp_poi <- round(0.032*nrow(seurat_data@meta.data))  
+nExp_poi <- round(expected_proportion*nrow(seurat_data@meta.data))  
 nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
 
 
