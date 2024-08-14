@@ -32,19 +32,8 @@ def _get_fastqs(wildcards):
         else:
             return(fastq1)
 
-# Function to return paths of input files
-def _get_input(wildcards):
-    if merge_fastq:
-        return(os.path.join(wildcards.results, "merge_fastqs", wildcards.sample + "_merged_fastqs.txt"))
-    else:
-        save_file = os.path.join(wildcards.results, "fastqs_not_merged.txt")
-        with open(save_file, "w") as out:
-            out.write("No fastqs to merge.\n")
-        return(save_file)
-
 rule bbduk:
     input:
-        input_list   = _get_input,
         fastqc_output = "{results}/fastqc_pre_trim/fastqc_{sample}_summary_untrimmed.txt"
     output:
         "{results}/bbduk_trim/{sample}.txt"
@@ -90,7 +79,6 @@ rule bbduk:
 # Run cutadapt for single-end reads
 rule cutadapt:
     input:
-        input_list   = _get_input,
         fastqc_output = "{results}/fastqc_pre_trim/fastqc_{sample}_summary_untrimmed.txt"
     output:
         "{results}/cutadapt_trim/{sample}.txt"
@@ -135,7 +123,6 @@ rule cutadapt:
 
 rule no_trim:
     input:
-        input_list = _get_input,
         fastqc_output = "{results}/fastqc_pre_trim/fastqc_{sample}_summary_untrimmed.txt"
     output:
         "{results}/no_trim/{sample}.txt"

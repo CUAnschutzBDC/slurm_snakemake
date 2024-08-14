@@ -35,8 +35,6 @@ def _get_input(wildcards):
         return(os.path.join(wildcards.results, "merge_fastqs", wildcards.sample + "_merged_fastqs.txt"))
     else:
         save_file = os.path.join(wildcards.results, "merge_fastqs", wildcards.sample + "_fastqs_not_merged.txt")
-        with open(save_file, "w") as out:
-            out.write("No fastqs to merge.\n")
         return(save_file)
 
 # Function to return paths of input files
