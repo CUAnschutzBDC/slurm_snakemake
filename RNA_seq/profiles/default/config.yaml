@@ -13,22 +13,22 @@ set-resources:
         mem: "4GB"
     fastq_screen:
         runtime: 720
-        mem: "1GB"
+        mem: "3GB"
     fastqc:
         runtime: 60
-        mem: "4GB"
+        mem: "3GB"
     fastqc_trim:
         runtime: 60
-        mem: "4GB"
+        mem: "3GB"
     fastqc_summary:
         runtime: 10
         mem: "1GB"
     bbduk:
         runtime: 180
-        mem: "4GB"
+        mem: "3GB"
     cutadapt:
         runtime: 180
-        mem: "4GB"
+        mem: "3GB"
     no_trim:
         runtime: 5
         mem: "1GB"
