@@ -12,7 +12,6 @@ def _get_strandedness(wildcards):
                 count_list.append(float(line[1]))
         max_value = max(count_list)
         max_position = count_list.index(max_value)
-        print(count_list)
         if max_value < 0.8:
             return(0)
         elif(max_position == 1):

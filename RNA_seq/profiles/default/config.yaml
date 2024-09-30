@@ -13,7 +13,7 @@ set-resources:
         mem: "4GB"
     fastq_screen:
         runtime: 720
-        mem: "3GB"
+        mem: "6GB"
     fastqc:
         runtime: 60
         mem: "3GB"

@@ -8,6 +8,8 @@ import glob
 import os 
 import re
 import pandas as pd
+from itertools import combinations
+
 
 # Set apptainer bindings NOT A PERMANENT SOLUTION
 os.environ["APPTAINER_BIND"] = "/scratch/alpine:/scratch/alpine,/pl/active/Anschutz_BDC:/pl/active/Anschutz_BDC,/tmp:/tmp"
@@ -81,6 +83,18 @@ GENOME   = _check_path(GENOME)
 if len(SPIKE_SAMPLES) > 0:
     COMBINED_GENOME = _check_path(COMBINED_GENOME)
 
+# Build rMats
+# Write a function that takes all pairwise groups
+# 1. Change the first rule to only make the input of one group (add in a group variable)
+# 2. Change the second rule to take the group files as input based on the group variable
+# This needs to have the scructure groupx_groupy in the wildcards
+RMATS_SAMPLES = pd.read_table(RMATS_INFO).set_index("sample", drop = False)
+GROUPS = RMATS_SAMPLES["group"].unique()
+pairwise_combinations = list(combinations(GROUPS, 2))
+group_comparisons = []
+for combination in pairwise_combinations:
+    group_comparisons.append(f"{combination[0]}_{combination[1]}")
+
 # Final output files
 rule all:
     input:
@@ -118,18 +132,22 @@ rule all:
 
         # Run rmats
         expand(
-            "{results}/rmats_{trim_method}_trim/group1_input.txt",
-            results = RESULTS, trim_method = TRIM_METHOD
+           "{results}/rmats_{trim_method}_trim/{group}_input.txt",
+            results = RESULTS, trim_method = TRIM_METHOD, group = GROUPS
         ),
         expand(
-            "{results}/rmats_{trim_method}_trim/rmats_done.txt",
-            results = RESULTS, trim_method = TRIM_METHOD
+            "{results}/rmats_{trim_method}_trim/rmats_{group_compare}_done.txt",
+            results = RESULTS, trim_method = TRIM_METHOD, group_compare = group_comparisons
         ),
         expand(
-          "{results}/{project}_quality_{trim_method}_trim.html",
-          results = RESULTS, project = PROJECT,
-          trim_method = TRIM_METHOD
+            "{results}/rmats_{trim_method}_trim/{group_compare}/combined_JCEC.txt",
+            results = RESULTS, trim_method = TRIM_METHOD, group_compare = group_comparisons
         )
+        # expand(
+        #   "{results}/{project}_quality_{trim_method}_trim.html",
+        #   results = RESULTS, project = PROJECT,
+        #   trim_method = TRIM_METHOD
+        # )
 
 # Snakes to run
 include: "src/rules/fastqc.snake"

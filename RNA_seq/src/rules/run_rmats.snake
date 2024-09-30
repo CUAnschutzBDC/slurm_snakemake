@@ -1,71 +1,150 @@
-def _get_group(wildcards, group):
+def _get_bam_input(wildcards):
     rmats_group = pd.read_table(RMATS_INFO).set_index("sample", drop = False)
-    rmats_group = rmats_group[rmats_group['group'] == group]
+    rmats_group = rmats_group[rmats_group['group'] == wildcards.group]
     all_samples = rmats_group["sample"].to_list()
-    results_path = os.path.join(RESULTS2, "star_" + wildcards.trim_method + "_trim")
-    all_files = [os.path.join(results_path, i + "_Aligned.sortedByCoord.out.bam") for i in all_samples]
+    return_list = []
+    for sample in all_samples:
+        file_name = f"{wildcards.results}/star_{wildcards.trim_method}_trim/{sample}_finished.txt"
+        return_list.append(file_name)
+    return return_list
+
+def _get_group(wildcards):
+    rmats_group = pd.read_table(RMATS_INFO).set_index("sample", drop = False)
+    rmats_group = rmats_group[rmats_group['group'] == wildcards.group]
+    all_samples = rmats_group["sample"].to_list()
+    results_path = os.path.join(RESULTS2, f"star_{wildcards.trim_method}_trim")
+    all_files = [os.path.join(results_path, f"{i}_Aligned.sortedByCoord.out.bam") for i in all_samples]
     write_file = ",".join(all_files) + "\n"
-    return(write_file)
+    return write_file
+
+def _get_input(wildcards):
+    group_1, group_2 = wildcards.group_compare.split("_")
+    input_1 = f"{wildcards.results}/rmats_{wildcards.trim_method}_trim/{group_1}_input.txt"
+    input_2 = f"{wildcards.results}/rmats_{wildcards.trim_method}_trim/{group_2}_input.txt"
+
+    return [input_1, input_2]
+
+def _get_paired(wildcards):
+    if IS_PAIRED:
+        return "paired"
+    else: 
+        return "single"
+
+def _get_strandedness(wildcards):
+    # Get samples:
+    rmats_group = pd.read_table(RMATS_INFO).set_index("sample", drop = False)
+    rmats_group = rmats_group[rmats_group['group'].isin(wildcards.group_compare.split("_"))]
+    all_samples = rmats_group["sample"].to_list()
+    return_list = []
+    for sample in all_samples:
+        in_path = os.path.join(wildcards.results, f"infer_experiment_{wildcards.trim_method}_trim",
+        f"{sample}_experiment.txt")
+        if os.path.exists(in_path):
+            with open(in_path) as infile:
+                next(infile)
+                next(infile)
+                next(infile)
+                count_list = []
+                for line in infile:
+                    line = line.strip().split(": ")
+                    count_list.append(float(line[1]))
+            max_value = max(count_list)
+            max_position = count_list.index(max_value)
+            if max_value < 0.8:
+                return_list.append("fr-unstranded")
+            elif(max_position == 1):
+                return_list.append("fr-secondstrand")
+            elif(max_position == 2):
+                return_list.append("fr-firststrand")
+            else:
+                sys.exit("can't determine strand for featurecounts")
+
+    return_val = set(return_list)
+    if len(return_val) > 1:
+        return "fr-unstranded"
+    else:
+        return return_val
 
 rule create_input:
     input:
-        expand(
-            "{{results}}/star_{{trim_method}}_trim/{sample}_finished.txt",
-            sample = SAMPLES
-        )
+        _get_bam_input
     output:
-        output1 = "{results}/rmats_{trim_method}_trim/group1_input.txt",
-        output2 = "{results}/rmats_{trim_method}_trim/group2_input.txt"
+        output = "{results}/rmats_{trim_method}_trim/{group}_input.txt"
     resources:
         slurm_extra=lambda wildcards: (
-            f"--output={wildcards.results}/logs/rmats/rmats_input_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/rmats/rmats_input_{wildcards.trim_method}_trim.err "
+            f"--output={wildcards.results}/logs/rmats/rmats_input_{wildcards.trim_method}_{wildcards.group}_trim.out "
+            f"--error={wildcards.results}/logs/rmats/rmats_input_{wildcards.trim_method}_{wildcards.group}_trim.err "
             f"--ntasks=1"
         )
     params:
-        group1 = lambda wildcards: _get_group(wildcards, group="group1"),
-        group2 = lambda wildcards: _get_group(wildcards, group="group2")
+        group = _get_group
     threads:
         1
     singularity:
        GENERAL_CONTAINER
     shell:  
         """
-        echo "{params.group1}" > {output.output1}
-        echo "{params.group2}" > {output.output2}
+        echo "{params.group}" > {output.output}
         """
 
 rule run_rmats:
     input:
-        input1 = "{results}/rmats_{trim_method}_trim/group1_input.txt",
-        input2 = "{results}/rmats_{trim_method}_trim/group2_input.txt"
+        _get_input
     output:
-        output1 = "{results}/rmats_{trim_method}_trim/rmats_done.txt",
+        output1 = "{results}/rmats_{trim_method}_trim/rmats_{group_compare}_done.txt"
     resources:
         slurm_extra=lambda wildcards: (
-            f"--output={wildcards.results}/logs/rmats/rmats_run_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/rmats/rmats_run_{wildcards.trim_method}_trim.err "
-            f"--ntasks=4"
+            f"--output={wildcards.results}/logs/rmats/rmats_run_{wildcards.trim_method}_{wildcards.group_compare}_trim.out "
+            f"--error={wildcards.results}/logs/rmats/rmats_run_{wildcards.trim_method}_{wildcards.group_compare}_trim.err "
         )
     params:
         gtf      = GTF,
-        out_dir  =  "{results}/rmats_{trim_method}_trim",
-        temp_dir = RESULTS2
+        out_dir  =  "{results}/rmats_{trim_method}_trim/{group_compare}",
+        temp_dir = os.path.join(RESULTS2, "rmats_{trim_method}_trim/{group_compare}"),
+        paired = _get_paired,
+        lib_type = _get_strandedness
     threads:
         4
     singularity:
        GENERAL_CONTAINER
     shell:  
         """
+        mkdir -p {params.temp_dir}
         rmats.py \
-            --b1 {input.input1} \
-            --b2 {input.input2} \
+            --b1 {input[0]} \
+            --b2 {input[1]} \
             --gtf {params.gtf} \
-            -t paired \
+            -t {params.paired} \
             --readLength 150 \
+            --libType {params.lib_type} \
+            --variable-read-length \
             --nthread {threads} \
             --od {params.out_dir} \
             --tmp {params.temp_dir}
             
         touch {output}
+        """
+
+
+rule combine_rmats:
+    input:
+        "{results}/rmats_{trim_method}_trim/rmats_{group_compare}_done.txt"
+    output:
+        "{results}/rmats_{trim_method}_trim/{group_compare}/combined_JCEC.txt",
+        "{results}/rmats_{trim_method}_trim/{group_compare}/combined_JC.txt"
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/rmats_combine/rmats_combine_{wildcards.trim_method}_{wildcards.group_compare}_trim.out "
+            f"--error={wildcards.results}/logs/rmats_combine/rmats_combine_{wildcards.trim_method}_{wildcards.group_compare}_trim.err"
+        )
+    params:
+        in_dir  =  "{results}/rmats_{trim_method}_trim/{group_compare}"
+    singularity:
+       R_CONTAINER
+    shell:  
+        """
+        Rscript --vanilla src/scripts/combine_rmats.R \
+            {params.in_dir} \
+            {output[0]} \
+            {output[1]}
         """

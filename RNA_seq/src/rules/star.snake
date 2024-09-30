@@ -33,7 +33,7 @@ def _get_input(wildcards):
 rule align:
     input:
         "{results}/{trim_method}_trim/{sample}.txt",
-        "{results}/fastqc_{trim_method}_summary_trimmed.tsv"
+        "{results}/fastqc_{trim_method}/fastqc_{sample}_summary_trimmed.txt"
     output:
         output = "{results}/star_{trim_method}_trim/{sample}_finished.txt",
         strand = "{results}/infer_experiment_{trim_method}_trim/{sample}_experiment.txt"

@@ -47,7 +47,7 @@ rule bbduk:
     shell:
         """
         mkdir -p {params.out_dir}
-        if [ {params.paired} ]
+        if [ "{params.paired}" = "True" ]
         then
             bbduk.sh \
                 in1   = {input.input_list[0]} \
@@ -95,7 +95,7 @@ rule cutadapt:
     shell:
         """
         mkdir -p {params.out_dir}
-        if [ {params.paired} ]
+        if [ "{params.paired}" = "True" ]
         then
             cutadapt \
                 {params.settings} \
