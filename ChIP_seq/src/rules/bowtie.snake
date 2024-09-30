@@ -68,7 +68,7 @@ rule align:
     shell:
         """
         mkdir -p {params.out_dir}
-        if [ {params.paired} ]
+        if {params.paired}
         then
             all_fastqs=({params.fastqs})
             bowtie2 \

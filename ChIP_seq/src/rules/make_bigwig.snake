@@ -42,7 +42,7 @@ rule make_bigwig_strand:
 		"{results}/logs/bigwig/bigwig_{trim_method}_{sample}_paired"
 	shell:
 		"""
-		if [ {params.paired} ]
+		if {params.paired}
 		then
 			temp_dir={wildcards.results}/{wildcards.sample}_temp
 			mkdir $temp_dir
