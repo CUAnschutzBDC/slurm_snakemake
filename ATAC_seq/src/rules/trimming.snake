@@ -44,7 +44,7 @@ rule bbduk:
         "{results}/logs/trimming/bbduk_{sample}"
     shell:
         """
-        if [ {params.paired} ]
+        if {params.paired}
         then
             bbduk.sh \
                 in1   = {input.input_list[0]} \
@@ -89,7 +89,7 @@ rule cutadapt:
         1
     shell:
         """
-        if [ {params.paired} ]
+        if {params.paired}
         then
             cutadapt \
                 {params.settings} \
