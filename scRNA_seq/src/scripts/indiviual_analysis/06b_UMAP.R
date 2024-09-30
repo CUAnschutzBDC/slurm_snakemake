@@ -5,8 +5,7 @@ library(harmony)
 library(here)
 library(scAnalysisR)
 library(clustree)
-
-source(here("src/scripts/common_setup.R"))
+source(here("src", "scripts", "common_setup.R"))
 
 # Read in data
 seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
@@ -26,10 +25,10 @@ PlotClusterTree(seurat_data)
 
 
 if(ADT & run_adt_umap){
-  if(adt_PCA){
+  if(ADT_pca){
     adt_reduction <- "apca"
   } else{
-    adt_reduction <- "pdsb"
+    adt_reduction <- "adt"
     DefaultAssay(seurat_data) <- "ADT"
     ADT_pcs <- nrow(seurat_data)
   }

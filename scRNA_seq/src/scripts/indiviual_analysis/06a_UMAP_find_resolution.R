@@ -5,8 +5,7 @@ library(harmony)
 library(here)
 library(scAnalysisR)
 library(clustree)
-
-source(here("src/scripts/common_setup.R"))
+source(here("src", "scripts", "common_setup.R"))
 
 # Read in data
 seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
@@ -26,9 +25,10 @@ clustering_columns <- colnames(seurat_data[[]])[grepl("RNA_snn_res",
                                                       colnames(seurat_data[[]]))]
 
 quality_columns <- c("nCount_RNA", "nFeature_RNA",
-                     "percent.mt", "Doublet_finder")
+                     "percent.mt", "percent.ribo",
+                     "Doublet_finder")
 
-if (ADT){
+if(ADT){
   quality_columns <- c(quality_columns, "nCount_ADT", "nFeature_ADT")
 }
 

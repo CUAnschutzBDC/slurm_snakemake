@@ -4,7 +4,7 @@ library(tidyverse)
 library(here)
 library(scAnalysisR)
 
-source(here("src/scripts/common_setup.R"))
+source(here("src", "scripts", "common_setup.R"))
 
 # Read in data
 seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_start.rds"))
@@ -27,7 +27,7 @@ seurat_data <- umap_data[[1]]
 
 # Run Doublet finder -----------------------------------------------------------
 set.seed(0)
-sweep.res.seurat_data <- paramSweep_v3(seurat_data, PCs = 1:npcs, sct = SCT)
+sweep.res.seurat_data <- paramSweep(seurat_data, PCs = 1:npcs, sct = SCT)
 
 if(HTO){
   ## pK Identification (ground-truth)
@@ -103,15 +103,19 @@ closest_index <- which.min(differences)
 # Retrieve the closest number from the vector
 expected_proportion <- as.numeric(multiplet_mapping[closest_index])
 
-nExp_poi <- round(expected_proportion*nrow(seurat_data@meta.data))  
+nExp_poi <- round(0.032*nrow(seurat_data@meta.data))  
 nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
 
 
 ## Find pK from bcmvn output, pN selection is less important--------------------
 
-seurat_data <- doubletFinder_v3(seurat_data, PCs = 1:npcs, pN = 0.25,
-                                pK = pK, nExp = nExp_poi.adj,
-                                reuse.pANN = FALSE, sct = SCT)
+seurat_data <- doubletFinder(
+  seurat_data, PCs = 1:npcs, 
+  pN = 0.25,
+  pK = pK, nExp = nExp_poi.adj,
+  reuse.pANN = FALSE,
+  sct = SCT
+)
 
 # Rename to be a consistent name between all samples
 df_column <- colnames(seurat_data[[]])[grep("DF.classifications",
@@ -127,6 +131,10 @@ pdf(file.path(save_dir, "images", "doublet_finder.pdf"))
 
 print(plotDimRed(seurat_data, col_by = "Doublet_finder",
                  plot_type = "rna.umap"))
+print(plotDimRed(seurat_data, col_by = "JCHAIN", plot_type = "rna.umap"))
+
+print(plotDimRed(seurat_data, col_by = "CD3D", plot_type = "rna.umap"))
+
 dev.off()
 
 saveRDS(seurat_data, file.path(save_dir, "rda_obj", "seurat_doublet.rds"))

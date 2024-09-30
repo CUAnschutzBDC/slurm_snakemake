@@ -4,14 +4,14 @@ library(tidyverse)
 library(here)
 library(scAnalysisR)
 
-source(here("src/scripts/common_setup.R"))
+source(here("src", "scripts", "common_setup.R"))
 
-# Load in raw data
-sample_path <- file.path(results_dir, sample, "outs", "per_sample_outs", 
-		                     sample, "count", "raw_feature_bc_matrix")
-
-sample_data <- Read10X(data.dir = sample_path)
 if(ADT){
+  # Load in raw data
+  sample_path <- file.path(results_dir, sample, "outs", "per_sample_outs", 
+                           sample, "count", "raw_feature_bc_matrix")
+  
+  sample_data <- Read10X(data.dir = sample_path)
   if(HTO){
     
     # Load in HTOs and demultiplex
