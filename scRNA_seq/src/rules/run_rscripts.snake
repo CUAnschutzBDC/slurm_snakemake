@@ -52,6 +52,12 @@ def build_all_input(script_names, sample, results, return_list):
 def _get_input(wildcards):
     return_list = []
 
+    # Cellranger output
+    sample_name = wildcards.sample
+    sample_name = re.sub("__.*", "", wildcards.sample)
+    if sample_name != "merged":
+        return_list.append(os.path.join(wildcards.results, "snake_outs", f"{sample_name}_moved_files.txt"))
+
     # First figure out where in the dict it should be
     key_value = script_name_dict[wildcards.sample]
     script_names = script_dict[key_value].keys()
