@@ -11,7 +11,8 @@ ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 normalization_method <- "log" # can be SCT or log
 
 # Read in command line arguments
-args <- commandArgs(trailingOnly = TRUE)
+#args <- commandArgs(trailingOnly = TRUE)
+args <- c("Npod6456_PLN", here("results"), here("files/sample_info.tsv"))
 
 sample <- args[[1]]
 sample <- gsub("__.*", "", sample)

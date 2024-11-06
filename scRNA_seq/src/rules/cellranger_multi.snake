@@ -93,7 +93,7 @@ rule merge_fastqs:
         def _merge_fastqs(sample, merged_name, raw_dir):
 
             # Merge fastqs for each read or create a symlink
-            for read in ["_R1_", "_R2_"]:
+            for read in ["_R1_", "_R2_", "_I1_"]:
                 names = sample.split(",")
 
                 # Create list of commands for creating symlinks
@@ -303,6 +303,8 @@ rule cellranger_count:
     shell:
         """
         echo $PATH
+        cp {params.template} {params.scratch}
+        
         # Run cellranger multi for vdj (CITE-seq) and gene expression
         if [ "{params.run_type}" == "VDJ" ]
         then
