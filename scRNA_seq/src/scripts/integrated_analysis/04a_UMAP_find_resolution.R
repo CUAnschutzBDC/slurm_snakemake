@@ -83,9 +83,8 @@ seurat_data <- FindClusters(seurat_data, resolution = c(0.2, 0.5, 0.6,
 clustering_columns <- colnames(seurat_data[[]])[grepl("RNA_snn_res",
                                                       colnames(seurat_data[[]]))]
 
-quality_columns <- c("nCount_RNA", "nFeature_RNA", "nCount_ADT",
-                     "nFeature_ADT", "percent.mt", "Doublet_finder",
-                     "nCount_TET", "nFeature_TET")
+quality_columns <- c("nCount_RNA", "nFeature_RNA",
+                     "percent.mt", "Doublet_finder")
 
 plot_columns <- c(clustering_columns, quality_columns)
 
