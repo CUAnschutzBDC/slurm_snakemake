@@ -51,6 +51,7 @@ rule align:
         fastqs     = _get_input,
         paired     = IS_PAIRED,
         scratch    = RESULTS2,
+        temp       = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}"),
         bam_output = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_Aligned.out.bam"),
         bai_file   = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_Aligned.out.bam.bai"),
         out_dir    = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim")
@@ -67,8 +68,10 @@ rule align:
         6
     shell:
         """
+        mkdir -p {params.temp}
+        rm -f {params.temp}/*.tmp
         mkdir -p {params.out_dir}
-        if {params.paired}
+        if [ "{params.paired}" = "True" ]
         then
             all_fastqs=({params.fastqs})
             bowtie2 \
@@ -82,7 +85,8 @@ rule align:
                 -1 ${{all_fastqs[0]}} \
                 -2 ${{all_fastqs[1]}} | \
                 samtools view -b - | \
-                samtools sort -@ {threads} -o {params.bam_output} -
+                samtools sort -@ {threads} \
+                -T {params.temp} -o {params.bam_output} -
 
         else
             bowtie2 \
@@ -95,7 +99,8 @@ rule align:
                 --met-file {output.log_output} \
                 -U {params.fastqs} | \
                 samtools view -b - | \
-                samtools sort -@ {threads} -o {params.bam_output} -
+                samtools sort -@ {threads} -T {params.temp} \
+                -o {params.bam_output} -
 
 
         fi

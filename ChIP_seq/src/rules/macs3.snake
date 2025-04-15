@@ -1,0 +1,94 @@
+# Runs Macs2
+
+# Function to return paths of input files
+def _get_input(wildcards):
+    # Grab path of the fastq file
+    test_sample = SAMPLE_CONTROL[wildcards.sample]
+    control_sample = re.sub(r'{}_'.format(test_sample), "", wildcards.sample)
+    test_bam = os.path.join(wildcards.results, "bowtie2_" + wildcards.trim_method +
+    "_trim", test_sample + "_remove_dup.bam")
+
+    control_bam = os.path.join(wildcards.results, "bowtie2_" + wildcards.trim_method +
+    "_trim", control_sample + "_remove_dup.bam")
+
+    return(test_bam, control_bam)
+
+def _build_command(wildcards):
+    input_files = expand(
+            os.path.join(wildcards.results,
+                "macs2_" + wildcards.trim_method + "_trim",
+                "{sample}_peaks.narrowPeak"),
+            sample = SAMPLE_CONTROL.keys()
+            )
+
+    command = "bedtools intersect"
+    for i in range(len(input_files)):
+        if i == 0:
+            command += " -a " + input_files[i]
+        elif i == 1:
+            command += " -b " + input_files[i]
+        else:
+            command += " | bedtools intersect -a - -b " + input_files[i]
+
+    return(command)
+
+rule macs3:
+    input:
+        _get_input
+    output:
+        "{results}/macs3_{trim_method}_trim/{sample}_peaks.narrowPeak"
+    params:
+        genome_size = GENOME_SIZE,
+        paired      = IS_PAIRED,
+        output_path = "{results}/macs3_{trim_method}_trim",
+        output_name = "{sample}",
+        qvalue      = QVALUE,
+        temp_dir    = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim", "{sample}")
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/macs3/macs3_{wildcards.sample}_{wildcards.trim_method}_trim.out "
+            f"--error={wildcards.results}/logs/macs3/macs3_{wildcards.sample}__{wildcards.trim_method}_trim.err"
+        )
+    singularity:
+       GENERAL_CONTAINER    
+    shell:
+        """
+        mkdir -p {params.temp_dir}
+        if {params.paired}
+        then
+            file_type="BAMPE"
+        else
+            file_type="BAM"
+        fi
+        macs3 callpeak \
+            -t {input[0]} \
+            -c {input[1]} \
+            -g {params.genome_size} \
+            -n {params.output_name} \
+            -f $file_type \
+            -q {params.qvalue} \
+            --outdir {params.output_path} \
+            --tempdir {params.temp_dir}
+        """
+
+rule overlapping_peaks:
+    input:
+        expand(
+            "{{results}}/macs3_{{trim_method}}_trim/{sample}_peaks.narrowPeak",
+            sample = SAMPLE_CONTROL.keys()
+            )
+    output:
+        "{results}/macs3_{trim_method}_trim/merged_peaks.narrowPeak"
+    params:
+        command  = _build_command
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/overlapping_peaks/overlapping_peaks_{wildcards.sample}_{wildcards.trim_method}_trim.out "
+            f"--error={wildcards.results}/logs/overlapping_peaks/overlapping_peaks_{wildcards.sample}__{wildcards.trim_method}_trim.err"
+        )
+    singularity:
+       GENERAL_CONTAINER    
+    shell:
+        """
+        {params.command} > {output}
+        """

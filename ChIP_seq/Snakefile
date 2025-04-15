@@ -98,7 +98,7 @@ else:
 # Decide if merge fastq should be run
 if not merge_fastq:
     out_dir = os.path.join(RESULTS, "merge_fastqs")
-    os.makedirs(out_dir, exist_ok = True)
+    os.makedirs(fou, exist_ok = True)
     for sample in SAMPLES:
         save_file = os.path.join(out_dir, f"{sample}_fastqs_not_merged.txt")
         with open(save_file, "w") as out:
@@ -142,7 +142,7 @@ rule all:
         ),
         # Call peaks
         expand(
-            "{results}/macs2_{trim_method}_trim/{sample}_peaks.narrowPeak",
+            "{results}/macs3_{trim_method}_trim/{sample}_peaks.narrowPeak",
             results = RESULTS, trim_method = TRIM_METHOD, sample = SAMPLE_CONTROL.keys()
             ),
         # Make quality sample sheet
@@ -166,7 +166,7 @@ rule all:
 include: "src/rules/fastqc.snake"
 include: "src/rules/trimming.snake"
 include: "src/rules/bowtie.snake"
-include: "src/rules/macs2.snake"
+include: "src/rules/macs3.snake"
 include: "src/rules/chip_quality.snake"
 include: "src/rules/make_bigwig.snake"
 include: "src/rules/fastq_screen.snake"
