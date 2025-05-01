@@ -1,5 +1,5 @@
 # Analysis pipelines
-Writen by Kristen Wells
+Writen by Kristen Wells and Chris Hill
 
 A collection of snakemake pipelines to analyze omics datasets. Current pipelines include:
 
