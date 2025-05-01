@@ -107,11 +107,11 @@ print(heatmap)
 
 ```
 
-### Gene Set Enrichment
+### Gene Set Enrichment {.tabset}
 
 For Gene Set Enrichment, I used `gprofiler2` It uses a hypergeometric test to determine overrepresentation of genes from different categories.
 
-```{r gse-{{name}}, fig.height = 30, fig.width = 12, eval = FALSE}
+```{r gse-{{name}}, eval = TRUE}
 all_gene_ens <- sub(".*_ENSMUSG", "ENSMUSG", rownames(dds))
 
 evcode <- TRUE
@@ -133,14 +133,28 @@ save_gost <- c("GO:BP", "GO:CC", "GO:MF", "KEGG")
 
 gost_file <- openxlsx::createWorkbook()
 
+ens_mapping <- sub("_ENSMUSG.*", "", rownames(dds))
+names(ens_mapping) <- sub(".*_ENSMUSG", "ENSMUSG", rownames(dds))
+
 invisible(lapply(save_gost, function(x){
   save_table <- gost_table %>%
     dplyr::filter(source == x)
     
   if(evcode){
     save_table <- save_table %>%
-      dplyr::select(!c(intersection, evidence_codes))
+      dplyr::select(!c(evidence_codes))
+    
+    all_intersections <- save_table$intersection
+    
+    gene_intersections <- lapply(all_intersections, function(intersection){
+      intersection <- stringr::str_split(intersection, pattern = ",")[[1]]
+      gene_intersection <- ens_mapping[intersection]
+      gene_intersection <- stringr::str_c(gene_intersection, collapse = ",")
+      return(gene_intersection)
+    })
 
+    
+    save_table$intersection <- gene_intersections
   }
   sheetname <- sub(":", "_", x)
   openxlsx::addWorksheet(wb = gost_file, sheetName = sheetname)
@@ -152,35 +166,58 @@ openxlsx::saveWorkbook(wb = gost_file,
                                      paste0(sect_title, "_GSE.xlsx")),
                        overwrite = TRUE)
 
-plot_grid(plots$GOBP, plots$GOMF, plots$GOCC, plots$KEGG,
-          nrow = 4,
-          ncol = 1,
-          align = "v",
-          axis = "tb")
 
 ```
 
+#### GO Biological function
 
-### Gene Set Enrichment Separating Up and Down Regulation
+```{r, fig.height=6, fig.width=8}
+
+print(plots$GOBP)
+```
+
+#### GO Molecular function
+
+```{r, fig.height=6, fig.width=8}
+
+print(plots$GOMF)
+```
+
+#### GO Cellular Compartment
+
+```{r, fig.height=6, fig.width=8}
+
+print(plots$GOCC)
+```
+
+#### KEGG
+
+```{r, fig.height=6, fig.width=8}
+
+print(plots$KEGG)
+```
+
+
+### Gene Set Enrichment Separating Up and Down Regulation {.tabset}
 
 For Gene Set Enrichment, I used `gprofiler2` It uses a hypergeometric test to determine overrepresentation of genes from different categories.
 
-```{r gse-split-{{name}}, fig.height = 30, fig.width = 12, eval = FALSE}
+```{r gse-split-{{name}}, eval = TRUE, include = F}
 all_gene_ens <- sub(".*_ENSMUSG", "ENSMUSG", rownames(dds))
 
-ifelse(!dir.exists(file.path(params$output_dir, "GSE_files_separated")),
-       dir.create(file.path(params$output_dir, "GSE_files_separated")),
+ifelse(!dir.exists(file.path(output_directory, "GSE_files_separated")),
+       dir.create(file.path(output_directory, "GSE_files_separated")),
        FALSE)
 
 result <- run_gprofiler(gene_table = sig_genes$DE_genes,
                         pos_name = treatment,
                         neg_name = control,
                         custom_bg = all_gene_ens,
-                        save_dir = file.path(params$output_dir,
+                        save_dir = file.path(output_directory,
                                              "GSE_files_separated"),
-                        plot_dir = file.path(params$output_dir, "images",
+                        plot_dir = file.path(output_directory, "images",
                                              "GSE"),
-                        evcodes = FALSE)
+                        evcodes = TRUE)
 
 plots <- result$plots
 gost_table_trt <- result[[treatment]]$result
@@ -200,7 +237,19 @@ add_gost_data <- function(gost_table, gost_file, source_test,
   
   if(evcode){
     save_table <- save_table %>%
-          dplyr::select(!c(intersection, evidence_codes))
+          dplyr::select(!c(evidence_codes))
+    
+        all_intersections <- save_table$intersection
+    
+    gene_intersections <- lapply(all_intersections, function(intersection){
+      intersection <- stringr::str_split(intersection, pattern = ",")[[1]]
+      gene_intersection <- ens_mapping[intersection]
+      gene_intersection <- stringr::str_c(gene_intersection, collapse = ",")
+      return(gene_intersection)
+    })
+
+    
+    save_table$intersection <- gene_intersections
   }
 
   sheetname <- sub(":", "_", source_test)
@@ -209,29 +258,77 @@ add_gost_data <- function(gost_table, gost_file, source_test,
 }
 
 invisible(lapply(save_gost, function(x){
-  add_gost_data(gost_table_trt, gost_file_trt, x, evcode = FALSE)
-  add_gost_data(gost_table_ctl, gost_file_ctl, x, evcode = FALSE)
+  add_gost_data(gost_table_trt, gost_file_trt, x, evcode = TRUE)
+  add_gost_data(gost_table_ctl, gost_file_ctl, x, evcode = TRUE)
 }))
 
 openxlsx::saveWorkbook(wb = gost_file_trt,
-                       file = file.path(params$output_dir, "GSE_files_separated", 
+                       file = file.path(output_directory, "GSE_files_separated", 
                                      paste0(sect_title, "_", treatment, 
                                      "_upregulated_genes_GSE.xlsx")),
                        overwrite = TRUE)
 
 openxlsx::saveWorkbook(wb = gost_file_ctl,
-                       file = file.path(params$output_dir, "GSE_files_separated", 
+                       file = file.path(output_directory, "GSE_files_separated", 
                                      paste0(sect_title, "_", control, 
                                      "_upregulated_genes_GSE.xlsx")),
                        overwrite = TRUE)
 
-plot_grid(plots$C_GOBP, plots$T_GOBP,
-          plots$C_GOMF, plots$T_GOMF,
-          plots$C_GOCC, plots$T_GOCC,
-          plots$C_KEGG, plots$T_KEGG,
-          nrow = 8,
-          ncol = 1,
-          align = "v",
-          axis = "tb")
 
+```
+
+#### GO Biological function (upregulated in red cells)
+
+```{r, fig.height=6, fig.width=8}
+
+print(plots$C_GOBP)
+```
+
+#### GO Molecular function (upregulated in red cells)
+
+```{r, fig.height=6, fig.width=8}
+
+print(plots$C_GOMF)
+```
+
+#### GO Cellular Compartment (upregulated in red cells)
+
+```{r, fig.height=6, fig.width=8}
+
+print(plots$C_GOCC)
+```
+
+#### KEGG (upregulated in red cells)
+
+```{r, fig.height=6, fig.width=8}
+
+print(plots$C_KEGG)
+```
+
+#### GO Biological function (upregulated in green cells)
+
+```{r, fig.height=6, fig.width=8}
+
+print(plots$T_GOBP)
+```
+
+#### GO Molecular function (upregulated in green cells)
+
+```{r, fig.height=6, fig.width=8}
+
+print(plots$T_GOMF)
+```
+
+#### GO Cellular Compartment (upregulated in green cells)
+
+```{r, fig.height=6, fig.width=8}
+
+print(plots$T_GOCC)
+```
+
+#### KEGG (upregulated in green cells)
+
+```{r, fig.height=6, fig.width=8}
+
+print(plots$T_KEGG)
 ```
