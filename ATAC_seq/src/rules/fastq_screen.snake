@@ -9,7 +9,7 @@ def _get_fastqs(wildcards):
         return(all_fastqs)
     else:
         # Grab path of the fastq file
-        return(SAMPLE_LIST.apply(_join_paths, axis=1))
+        return(SAMPLE_LIST.apply(_join_paths, axis=1).to_list())
 
 def _join_paths(row):
     data_dir = row["data_dir"]

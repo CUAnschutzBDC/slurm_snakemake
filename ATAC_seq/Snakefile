@@ -33,19 +33,21 @@ PROJECT       = config["PROJECT"]
 BLACKLIST     = config["BLACKLIST"]
 CHR_SIZE      = config["CHR_SIZE"]
 HMMRATAC_FILE = config["HMMRATAC_FILE"]
+GENOME_SIZE       = config["GENOME_SIZE"]
 GENERAL_CONTAINER = config["GENERAL_CONTAINER"]
 R_CONTAINER   = config["R_CONTAINER"]
 SEQ_INFO      = config["SEQ_INFO"]
 TRANSCRIPTS   = config["TRANSCRIPTS"]
 BSGENOME      = config["BSGENOME"]
-PICARD_CONTAINER  = config["PICARD_CONATINER"]
+QVALUE            = config["QVALUE"]
+PICARD_CONTAINER  = config["PICARD_CONTAINER"]
 PICARD_JAR        = config["PICARD_JAR"]
 FASTQ_SCREEN      = config["FASTQ_SCREEN"]
-
+FASTQ_SCREEN_DATA = config["FASTQ_SCREEN_DATA"]
 
 # Make the desired path in scratch
 #user_variable = os.environ.get('USER')
-user_variable = "kwellswrasman@xsede.org"
+user_variable = "chill1@xsede.org"
 scratch_dir = os.path.join(SCRATCH_DIR, user_variable)
 
 
@@ -123,7 +125,7 @@ rule all:
             ),
         # Bowtie2 output
         expand(
-            "{results}/bowtie2_{trim_method}_trim/{sample}_Aligned.sortedByCoord.out.bam",
+            "{results}/bowtie2_{trim_method}_trim/{sample}_done.txt",
             results = RESULTS, trim_method = TRIM_METHOD, sample = SAMPLES
             ),
         # Make QC plots
@@ -133,13 +135,18 @@ rule all:
             ),
 
         # Call peaks - macs
-        expand(
-             "{results}/macs2_{trim_method}_trim/{sample}_peaks.broadPeak",
-             results = RESULTS, trim_method = TRIM_METHOD, sample = SAMPLES
-            ),
+        #expand(
+        #     "{results}/macs2_{trim_method}_trim/{sample}_peaks.broadPeak",
+        #     results = RESULTS, trim_method = TRIM_METHOD, sample = SAMPLES
+        #    ),
         expand(
             "{results}/featureCounts_{trim_method}_trim/combined_frip.tsv",
             results = RESULTS, trim_method = TRIM_METHOD
+            ),
+        # Call peaks
+        expand(
+            "{results}/macs3_{trim_method}_trim/{sample}_peaks.narrowPeak",
+            results = RESULTS, trim_method = TRIM_METHOD, sample = SAMPLES
             ),
 
         # Call peaks - hmmratac
@@ -151,7 +158,7 @@ rule all:
         # Diff bind
         expand(
             "{results}/{peak_caller}_diffbind_{trim_method}_trim/count_obj.rds",
-            results = RESULTS, trim_method = TRIM_METHOD, peak_caller = ["macs2", "hmmratac"]
+            results = RESULTS, trim_method = TRIM_METHOD, peak_caller = ["macs3", "hmmratac"]
             ),
 
         # Downsample
@@ -172,3 +179,4 @@ include: "src/rules/alignment.snake"
 include: "src/rules/qc_plots.snake"
 include: "src/rules/call_peaks.snake"
 include: "src/rules/downsample.snake"
+include: "src/rules/macs3.snake"

@@ -69,7 +69,7 @@ rule align:
     shell:
         """
         mkdir -p {params.temp}
-        rm -f {params.temp}/*.tmp
+        rm -f {params.temp}/*.tmp*.bam
         mkdir -p {params.out_dir}
         if [ "{params.paired}" = "True" ]
         then
