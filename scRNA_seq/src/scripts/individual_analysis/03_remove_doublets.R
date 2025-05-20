@@ -66,42 +66,9 @@ annotations <- seurat_data$seurat_clusters
 homotypic.prop <- modelHomotypic(annotations) 
 
 # Find expected proportion -----------------------------------------------------
-## CHANGE BASED ON CELL NUMBERS
-# Multiplet rate	# cells loaded	# cells recovered
-# 0.40%	825	500
-# 0.80%	1,650	1,000
-# 1.60%	3,300	2,000
-# 2.40%	4,950	3,000
-# 3.20%	6,600	4,000
-# 4.00%	8,250	5,000
-# 4.80%	9,900	6,000
-# 5.60%	11,550	7,000
-# 6.40%	13,200	8,000
-# 7.20%	14,850	9,000
-# 8.00%	16,500	10,000
 
-multiplet_mapping <- c("500" = 0.004,
-                       "1000" = 0.008,
-                       "2000" = 0.016,
-                       "3000" = 0.024,
-                       "4000" = 0.032,
-                       "5000" = 0.04,
-                       "6000" = 0.048,
-                       "7000" = 0.056,
-                       "8000" = 0.064,
-                       "9000" = 0.072,
-                       "10000" = 0.08)
-
-# Find number of cells
-ncells <- ncol(seurat_data)
-
-differences <- abs(as.numeric(names(multiplet_mapping)) - ncells)
-
-# Find the index of the element with the minimum difference
-closest_index <- which.min(differences)
-
-# Retrieve the closest number from the vector
-expected_proportion <- as.numeric(multiplet_mapping[closest_index])
+# The expected proportion is 0.8% per 1000 cells https://cdn.10xgenomics.com/image/upload/v1660261286/support-documents/CG000351_TechNote_ChromiumNextGEMSingle_Cell_V_D_J_v2_Reagent_Workflow_Updates_RevA.pdf
+expected_proportion <- ncells / 1000 * 0.008
 
 nExp_poi <- round(0.032*nrow(seurat_data@meta.data))  
 nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
