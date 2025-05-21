@@ -41,14 +41,13 @@ TRANSCRIPTS   = config["TRANSCRIPTS"]
 BSGENOME      = config["BSGENOME"]
 QVALUE            = config["QVALUE"]
 PICARD_CONTAINER  = config["PICARD_CONTAINER"]
-PICARD_JAR        = config["PICARD_JAR"]
+PICARD_JAR        = "$PICARD"
 FASTQ_SCREEN      = config["FASTQ_SCREEN"]
 FASTQ_SCREEN_DATA = config["FASTQ_SCREEN_DATA"]
 
 # Make the desired path in scratch
 #user_variable = os.environ.get('USER')
-user_variable = "chill1@xsede.org"
-scratch_dir = os.path.join(SCRATCH_DIR, user_variable)
+scratch_dir = SCRATCH_DIR
 
 
 current_dir = os.getcwd()

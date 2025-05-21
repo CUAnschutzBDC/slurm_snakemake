@@ -1,7 +1,6 @@
 ##### aligning information #####
 
-# The path to the scratch direcotry. Your username will be determined given that you
-# can view it with $USER
+# The path to the scratch direcotry.
 SCRATCH_DIR:
     "/scratch/alpine"
 
@@ -25,7 +24,6 @@ PROJECT:
 
 # Reference. This should be the path to a directory created using star
 GENOME:
-  /pl/active/Anschutz_BDC/resources/ref/indices/star/human/GRCh38
 
 # Combined genome if spike-ins were used. This should be a path to a combined index using
 # star. Can leave blank if no spike-ins were used.
@@ -33,11 +31,10 @@ COMBINED_GENOME:
 
 # GTF. This is a path to the gtf file. Should match the genome fa used
 GTF:
-  /pl/active/Anschutz_BDC/resources/ref/annotation/human/GRCh38/gtf/Homo_sapiens.GRCh38.95.gtf
+  
 
 # Bed file to use with infer_experiment.py
 BED:
-  /pl/active/Anschutz_BDC/resources/ref/annotation/human/GRCh38/bed/Homo_sapiens.GRCh38.95.bed
 
 
 # Combined gtf if spike-ins were used. Should match the genome fa used.
@@ -87,11 +84,11 @@ RMATS_INFO:
 
 #################################### Docker images #############################################
 GENERAL_CONTAINER:
-  "docker/general_docker/rnaseq_general_v3.sif"
+  "docker/general_docker/rnaseq_general_v2.sif"
 
 R_CONTAINER:
-  "docker/r_docker/rnaseq_r_v1.sif"
+  "docker/r_docker/rnaseq_rv2_dockerhub.sif"
 
 # Path to fastq_screen container
 FASTQ_SCREEN:
-  "docker/fastq_screen/fastq_screen_v1.sif"
+  "docker/fastq_screen/fastq_screen_v1.2.sif"

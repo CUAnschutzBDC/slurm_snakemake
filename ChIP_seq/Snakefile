@@ -27,15 +27,13 @@ ANNOTATION        = config["ANNOTATION"]
 FASTQ_SCREEN_DATA = config["FASTQ_SCREEN_DATA"]
 GENERAL_CONTAINER = config["GENERAL_CONTAINER"]
 R_CONTAINER       = config["R_CONTAINER"]
-PICARD_CONTAINER  = config["PICARD_CONATINER"]
-PICARD_JAR        = config["PICARD_JAR"]
+PICARD_CONTAINER  = config["PICARD_CONTAINER"]
+PICARD_JAR        = "$PICARD"
 QVALUE            = config["QVALUE"]
 FASTQ_SCREEN      = config["FASTQ_SCREEN"]
 
 # Make the desired path in scratch
-#user_variable = os.environ.get('USER')
-user_variable = "kwellswrasman@xsede.org"
-scratch_dir = os.path.join(SCRATCH_DIR, user_variable)
+scratch_dir = SCRATCH_DIR
 
 current_dir = os.getcwd()
 rel_path_to_home = os.path.relpath(current_dir, start=BASE_PATH)
@@ -98,7 +96,7 @@ else:
 # Decide if merge fastq should be run
 if not merge_fastq:
     out_dir = os.path.join(RESULTS, "merge_fastqs")
-    os.makedirs(fou, exist_ok = True)
+    os.makedirs(out_dir, exist_ok = True)
     for sample in SAMPLES:
         save_file = os.path.join(out_dir, f"{sample}_fastqs_not_merged.txt")
         with open(save_file, "w") as out:

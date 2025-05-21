@@ -61,8 +61,7 @@ def _check_path(path):
 
 # Make the desired path in scratch
 #user_variable = os.environ.get('USER')
-user_variable = "kwellswrasman@xsede.org"
-scratch_dir = os.path.join(SCRATCH_DIR, user_variable)
+scratch_dir = SCRATCH_DIR
 current_dir = os.getcwd()
 rel_path_to_home = os.path.relpath(current_dir, start=BASE_PATH)
 
