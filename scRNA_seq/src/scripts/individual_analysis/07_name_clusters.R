@@ -171,8 +171,8 @@ print(plotDimRed(seurat_data, col_by = all_celltypes,
 
 # Merge dfs
 
-merge_dfs <- function(res_list, seurat_object, save_name, cluster_col){
-  seurat_res <- do.call(cbind, res_list)
+merge_dfs <- function(res1, res2, seurat_object, save_name, cluster_col){
+  seurat_res <- cbind(res1, res2)
   
   seurat_cluster <- cor_to_call(seurat_res) %>% 
     mutate(type = ifelse(r < cor_cutoff, "undetermined", type))
@@ -180,11 +180,10 @@ merge_dfs <- function(res_list, seurat_object, save_name, cluster_col){
   
   new_clusters <- seurat_cluster$type
   names(new_clusters) <- seurat_cluster$cluster
-  meta_data <- seurat_object[[]]
-  meta_data[[save_name]] <- new_clusters[meta_data[[cluster_col]]]
-  meta_data <- meta_data[, save_name, drop = FALSE]
-  
-  seurat_object <- AddMetaData(seurat_object, metadata = meta_data)
+  seurat_meta <- seurat_object[[]]
+  seurat_meta[[save_name]] <- new_clusters[seurat_object[[cluster_col]][[1]]]
+  seurat_meta <- seurat_meta[,save_name, drop = FALSE]
+  seurat_object <- AddMetaData(seurat_object, metadata = seurat_meta)
   return(seurat_object)
 }
 
