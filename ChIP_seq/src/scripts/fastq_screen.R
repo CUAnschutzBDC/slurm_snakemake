@@ -16,7 +16,7 @@ all_results <- lapply(all_files, function(file_name){
 	sample <- gsub(file_pattern, "", file_name)
 
 	# In case the file pattern doesn't match, just remove the fastq screen
-	sample <- gsub(search_pattern, "", file_name)
+	#sample <- gsub(search_pattern, "", file_name)
 
 	file <- read.table(file.path(save_dir, file_name), sep = "\t",
 					fill = TRUE, comment.char = "", header = TRUE, 

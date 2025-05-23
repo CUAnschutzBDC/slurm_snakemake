@@ -66,12 +66,12 @@ if(params$snakemake){
   fastq_screen_res <- read.csv(here(params$fastq_screen))
 }
 
-replicate_colors <- MetBrewer::met.brewer(name = "Greek",
+replicate_colors <- MetBrewer::met.brewer("Greek",
                                           n = length(unique(samples$replicate)))
 
 names(replicate_colors) <- unique(samples$replicate)
 
-all_sample_color <- MetBrewer::met.brewer(name = "Monet",
+all_sample_color <- MetBrewer::met.brewer("Monet",
                                           n = length(unique(samples$sample)))
 names(all_sample_color) <- unique(samples$sample)
 

@@ -1,0 +1,82 @@
+def macs_input(wildcards):
+    if wildcards.input_type == "input":
+        macs_sample = REV_SAMPLE_CONTROL[wildcards.sample]
+        macs_file = f'{wildcards.results}/macs3_{wildcards.trim_method}_trim_{wildcards.input_type}/{macs_sample}_peaks.narrowPeak'
+    else:
+        macs_file = f'{wildcards.results}/macs3_{wildcards.trim_method}_trim_{wildcards.input_type}/{wildcards.sample}_peaks.narrowPeak'
+    return(macs_file)
+
+def frip_input(wildcards):
+    if wildcards.input_type == "input":
+        all_files = expand("{results}/featureCounts_{trim_method}_trim_{input_type}/{sample}_counts.txt.summary",
+                            sample = REV_SAMPLE_CONTROL.keys(), results = wildcards.results,
+                            input_type = wildcards.input_type, trim_method = wildcards.trim_method)
+    else:
+        all_files = expand("{results}/featureCounts_{trim_method}_trim_{input_type}/{sample}_counts.txt.summary",
+                            sample = SAMPLES, results = wildcards.results,
+                            input_type = wildcards.input_type, trim_method = wildcards.trim_method)
+    return(all_files)
+
+rule frip:
+    input:
+        bam = "{results}/bowtie2_{trim_method}_trim/{sample}_remove_dup.bam",
+        peaks = macs_input
+    output:
+        count_file = "{results}/featureCounts_{trim_method}_trim_{input_type}/{sample}_counts.txt",
+        summary    = "{results}/featureCounts_{trim_method}_trim_{input_type}/{sample}_counts.txt.summary"
+    params:
+        out_dir   = "{results}/featureCounts_{trim_method}_trim_{input_type}"
+    singularity:
+       GENERAL_CONTAINER
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/featureCounts_{wildcards.input_type}/featureCounts_{wildcards.sample}_{wildcards.trim_method}_trim.out "
+            f"--error={wildcards.results}/logs/featureCounts_{wildcards.input_type}/featureCounts_{wildcards.sample}_{wildcards.trim_method}_trim.err"
+        )
+    shell:
+        """
+        file_name={params.out_dir}/{wildcards.sample}.saf
+
+        # Make saf
+        awk \
+            'OFS="\t" {{print $1"-"$2+1"-"$3, $1, $2+1, $3, "+"}}' \
+            {input.peaks} > $file_name
+
+        # feature counts
+        featureCounts \
+            -p -a $file_name \
+            -F SAF -o {output.count_file} \
+            {input.bam}
+        """
+
+rule combine_frip:
+    input:
+        all_files = frip_input
+    output:
+        out_file = "{results}/featureCounts_{trim_method}_trim_{input_type}/combined_frip.tsv"
+    resources:
+        slurm_extra=lambda wildcards: (
+            f"--output={wildcards.results}/logs/combine_frip/combine_frip_{wildcards.trim_method}_trim_{wildcards.input_type}.out "
+            f"--error={wildcards.results}/logs/combine_frip/combine_frip_{wildcards.trim_method}_trim_{wildcards.input_type}.err"
+        )
+    run:
+        count_dictionary = {}
+        for file in input.all_files:
+            file_name = file.split("/")[-1]
+            sample_name = re.sub("_counts.txt.summary", "", file_name)
+            with open(file, "r") as in_file:
+                total_count = 0
+                header = next(in_file)
+                for line in in_file:
+                    alignment_type, count = line.strip().split("\t")
+                    total_count += int(count)
+                    if alignment_type == "Assigned":
+                        assigned_count = int(count)
+
+                frip_val = assigned_count / total_count
+                count_dictionary[sample_name] = frip_val
+
+        with open(output.out_file, "w") as out_file:
+            out_file.write("sample\tfrip_val\n")
+            for sample in count_dictionary:
+                out_file.write("{}\t{}\n".format(sample, str(count_dictionary[sample])))

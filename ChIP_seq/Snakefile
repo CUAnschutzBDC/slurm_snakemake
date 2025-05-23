@@ -27,12 +27,13 @@ ANNOTATION        = config["ANNOTATION"]
 FASTQ_SCREEN_DATA = config["FASTQ_SCREEN_DATA"]
 GENERAL_CONTAINER = config["GENERAL_CONTAINER"]
 R_CONTAINER       = config["R_CONTAINER"]
-PICARD_CONTAINER  = config["PICARD_CONTAINER"]
-PICARD_JAR        = "$PICARD"
+PICARD_CONTAINER  = config["PICARD_CONATINER"]
+PICARD_JAR        = config["PICARD_JAR"]
 QVALUE            = config["QVALUE"]
 FASTQ_SCREEN      = config["FASTQ_SCREEN"]
 
 # Make the desired path in scratch
+#user_variable = os.environ.get('USER')
 scratch_dir = SCRATCH_DIR
 
 current_dir = os.getcwd()
@@ -81,6 +82,8 @@ for sample, control in zip(SAMPLE_LIST.index.values, SAMPLE_LIST.control.values)
         for one_control in control.split(","):
             SAMPLE_CONTROL[sample + "_" + one_control] = sample
 
+REV_SAMPLE_CONTROL = {v: k for k, v in SAMPLE_CONTROL.items()}
+
 # NOTE: now when running MACS2... expand("...{sample}...", sample = SAMPLE_CONTROL.keys())
 
 # Check/set directory/file paths
@@ -108,7 +111,7 @@ rule all:
             "{results}/fastqc_pre_trim_summary_untrimmed.tsv",
             results = RESULTS
             ),
-        # Run fastq screen
+        # # Run fastq screen
         expand(
             "{results}/fastq_screen/fastq_screen_barplot.pdf",
             results = RESULTS
@@ -140,18 +143,22 @@ rule all:
         ),
         # Call peaks
         expand(
-            "{results}/macs3_{trim_method}_trim/{sample}_peaks.narrowPeak",
-            results = RESULTS, trim_method = TRIM_METHOD, sample = SAMPLE_CONTROL.keys()
+            "{results}/macs3_{trim_method}_trim_{input_type}/{sample}_peaks.narrowPeak",
+            results = RESULTS, trim_method = TRIM_METHOD, sample = SAMPLE_CONTROL.keys(), input_type = ["input"]
             ),
         # Make quality sample sheet
         expand(
             "{results}/quality_sample_sheet_{trim_method}.csv",
             results = RESULTS, trim_method = TRIM_METHOD    
             ),
-        # Make quality plots
+        # # Make quality plots
         expand(
           "{results}/quality_{trim_method}_trim.html",
           results = RESULTS, trim_method = TRIM_METHOD
+        ),
+        expand(
+            "{results}/featureCounts_{trim_method}_trim_{input_type}/combined_frip.tsv",
+            results = RESULTS, trim_method = TRIM_METHOD, input_type = ["input", "alone"]
         )
         # Make bigwigs
         # expand(
@@ -170,3 +177,4 @@ include: "src/rules/make_bigwig.snake"
 include: "src/rules/fastq_screen.snake"
 include: "src/rules/qc_plots.snake"
 include: "src/rules/merge_fastq.snake"
+include: "src/rules/frip.snake"
