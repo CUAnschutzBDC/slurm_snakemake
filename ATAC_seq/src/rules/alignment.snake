@@ -75,7 +75,7 @@ rule align:
         then
             all_fastqs=({params.fastqs})
             bowtie2 \
-                --very-sensitive \
+                --very-sensitive-local \
                 -k 10 \
                 -x {params.genome} \
                 --threads {threads} \
@@ -90,7 +90,7 @@ rule align:
 
         else
             bowtie2 \
-                --very-sensitive \
+                --very-sensitive-local \
                 -k 10 \
                 -x {params.genome} \
                 --threads {threads} \

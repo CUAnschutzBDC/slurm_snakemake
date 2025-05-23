@@ -22,7 +22,7 @@ rule macs3:
     shell:
         """
         mkdir -p {params.temp_dir}
-        if {params.paired}
+        if [ {params.paired} == "True" ]
         then
             file_type="BAMPE"
         else
