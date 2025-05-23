@@ -1,0 +1,14 @@
+[workspace]
+name = "rnaseq"
+version = "0.1.0"
+description = "Bioinformatics environment"
+channels = ["conda-forge", "bioconda"]
+platforms = ["linux-64"]
+
+[dependencies]
+pip = "==25.0"
+pysam = "==0.23.0"
+bowtie2 = "==2.5.4"
+samtools = "==1.21"
+bedtools = "==2.31.1"
+fastq-screen = "==0.16.0"

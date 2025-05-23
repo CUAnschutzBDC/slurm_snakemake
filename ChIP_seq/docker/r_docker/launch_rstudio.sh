@@ -19,12 +19,12 @@ mkdir -pv $APPTAINER_CACHEDIR $APPTAINER_TMPDIR
 mkdir -p logs
 
 # path to directory on HPC for persistant storage of R packages
-USER_R_LIB=/projects/${USER}/R/elliot_chip/4.2
+USER_R_LIB=/projects/${USER}/R/RNA_seq/4.2
 LOGIN_HOST=login-ci.rc.colorado.edu
 RSA_KEY=/Users/wellskr/.ssh/id_rsa
 
 # path to sif file on HPC
-SINGULARITY_IMAGE="chip_r.sif"
+SINGULARITY_IMAGE="rnaseq_r_v1.sif"
 
 # Change home path so that rstudio saves files to projects instead
 export HOME=/projects/${USER}
