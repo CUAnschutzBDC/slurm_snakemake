@@ -15,7 +15,7 @@ set-resources:
         runtime: 10
         mem: "1GB"
     cellranger_count:
-        runtime: 10
+        runtime: 1440
         mem: "1GB"
     create_aggr_csv:
         runtime: 10

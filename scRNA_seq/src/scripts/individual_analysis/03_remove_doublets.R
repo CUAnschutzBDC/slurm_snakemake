@@ -68,9 +68,9 @@ homotypic.prop <- modelHomotypic(annotations)
 # Find expected proportion -----------------------------------------------------
 
 # The expected proportion is 0.8% per 1000 cells https://cdn.10xgenomics.com/image/upload/v1660261286/support-documents/CG000351_TechNote_ChromiumNextGEMSingle_Cell_V_D_J_v2_Reagent_Workflow_Updates_RevA.pdf
-expected_proportion <- ncells / 1000 * 0.008
+expected_proportion <- nrow(seurat_data@meta.data) / 1000 * 0.008
 
-nExp_poi <- round(0.032*nrow(seurat_data@meta.data))  
+nExp_poi <- round(expected_proportion*nrow(seurat_data@meta.data))  
 nExp_poi.adj <- round(nExp_poi*(1-homotypic.prop))
 
 
@@ -80,7 +80,7 @@ seurat_data <- doubletFinder(
   seurat_data, PCs = 1:npcs, 
   pN = 0.25,
   pK = pK, nExp = nExp_poi.adj,
-  reuse.pANN = FALSE,
+  reuse.pANN = NULL,
   sct = SCT
 )
 
@@ -98,9 +98,9 @@ pdf(file.path(save_dir, "images", "doublet_finder.pdf"))
 
 print(plotDimRed(seurat_data, col_by = "Doublet_finder",
                  plot_type = "rna.umap"))
-print(plotDimRed(seurat_data, col_by = "JCHAIN", plot_type = "rna.umap"))
+print(plotDimRed(seurat_data, col_by = "Ins1", plot_type = "rna.umap"))
 
-print(plotDimRed(seurat_data, col_by = "CD3D", plot_type = "rna.umap"))
+print(plotDimRed(seurat_data, col_by = "Gcg", plot_type = "rna.umap"))
 
 dev.off()
 
