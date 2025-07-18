@@ -21,3 +21,11 @@ library(apeglm)
 library(KEGGREST)
 library(org.Mm.eg.db)
 library(MoMAColors) # BlakeRMills/MoMAColors
+library(limma)
+library(edgeR)
+library(ggraph)
+library(ggdendro)
+library(PLIER) # "wgmao/PLIER"
+library(sva)
+library(CIBERSORT) # Moonerss/CIBERSORT
+library(EnhancedVolcano)

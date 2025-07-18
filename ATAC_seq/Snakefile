@@ -127,6 +127,11 @@ rule all:
             "{results}/bowtie2_{trim_method}_trim/{sample}_done.txt",
             results = RESULTS, trim_method = TRIM_METHOD, sample = SAMPLES
             ),
+        # Bowtie2 stats
+        expand(
+            "{results}/bowtie2_{trim_method}_trim/bowtie_stats_finished.txt",
+            results = RESULTS, trim_method = TRIM_METHOD
+        ),
         # Make QC plots
         expand(
             "{results}/atac_qc_{trim_method}_trim/{sample}/plots/tss_enrichment_by_nucleosome.pdf",

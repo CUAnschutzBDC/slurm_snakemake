@@ -9,6 +9,7 @@ use-apptainer: True
 default-resources:
     slurm_partition: "amilan"
     slurm_account:   "amc-general"
+    slurm_extra: "'--qos=normal'"
 
 set-resources:
     fastq_screen:
