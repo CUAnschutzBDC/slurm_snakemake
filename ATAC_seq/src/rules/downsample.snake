@@ -31,6 +31,7 @@ rule find_downsample_val:
         R_CONTAINER
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/downsample_val/downsample_val_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/downsample_val/downsample_val_{wildcards.trim_method}_trim.err"
         )
@@ -53,6 +54,7 @@ rule downsample_bams:
         GENERAL_CONTAINER
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/downsample/downsample_{wildcards.sample}_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/downsample/downsample_{wildcards.sample}_{wildcards.trim_method}_trim.err"
         )

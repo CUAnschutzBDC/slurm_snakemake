@@ -113,6 +113,7 @@ rule run_rscript:
         config["RSCRIPT_CONTAINER"]
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/rscript/{wildcards.sample}.out "
             f"--error={wildcards.results}/logs/rscript/{wildcards.sample}.err"
         )
@@ -138,6 +139,7 @@ rule run_dropkick:
         config["DROPKICK_CONTAINER"]
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/dropkick/{wildcards.sample}_dropkick.out "
             f"--error={wildcards.results}/logs/dropkick/{wildcards.sample}_dropkick.err"
         )

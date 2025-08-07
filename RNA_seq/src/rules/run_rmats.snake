@@ -72,6 +72,7 @@ rule create_input:
         output = "{results}/rmats_{trim_method}_trim/{group}_input.txt"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/rmats/rmats_input_{wildcards.trim_method}_{wildcards.group}_trim.out "
             f"--error={wildcards.results}/logs/rmats/rmats_input_{wildcards.trim_method}_{wildcards.group}_trim.err "
             f"--ntasks=1"
@@ -94,6 +95,7 @@ rule run_rmats:
         output1 = "{results}/rmats_{trim_method}_trim/rmats_{group_compare}_done.txt"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/rmats/rmats_run_{wildcards.trim_method}_{wildcards.group_compare}_trim.out "
             f"--error={wildcards.results}/logs/rmats/rmats_run_{wildcards.trim_method}_{wildcards.group_compare}_trim.err "
         )
@@ -134,6 +136,7 @@ rule combine_rmats:
         "{results}/rmats_{trim_method}_trim/{group_compare}/combined_JC.txt"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/rmats_combine/rmats_combine_{wildcards.trim_method}_{wildcards.group_compare}_trim.out "
             f"--error={wildcards.results}/logs/rmats_combine/rmats_combine_{wildcards.trim_method}_{wildcards.group_compare}_trim.err"
         )

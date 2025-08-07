@@ -47,6 +47,7 @@ rule bbduk:
         input_fq  = _get_fastqs
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/bbduk/bbduk_{wildcards.sample}.out "
             f"--error={wildcards.results}/logs/bbduk/bbduk_{wildcards.sample}.err"
         )
@@ -91,6 +92,7 @@ rule cutadapt:
         input_fq  = _get_fastqs
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/cutadapt/cutadapt_{wildcards.sample}.out "
             f"--error={wildcards.results}/logs/cutadapt/cutadapt_{wildcards.sample}.err"
         )
@@ -128,6 +130,7 @@ rule no_trim:
         "{results}/no_trim/{sample}.txt"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/no_trim/no_trim_{wildcards.sample}.out "
             f"--error={wildcards.results}/logs/no_trim/no_trim_{wildcards.sample}.err"
         )

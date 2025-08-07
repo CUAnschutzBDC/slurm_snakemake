@@ -10,6 +10,7 @@ rule make_sample_sheet:
         "{results}/quality_sample_sheet_{trim_method}.csv"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/make_sample_sheet/make_sample_sheet_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/make_sample_sheet/make_sample_sheet_{wildcards.trim_method}_trim.err"
         )

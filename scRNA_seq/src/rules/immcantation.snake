@@ -1,21 +1,21 @@
 # The -b is a path within the container. It should not need to be changed.
 rule igblast_bcr:
 	input:
-		"{results}/logs/{sample}_count_done.txt"
+		"{results}/snake_outs/{sample}_moved_files.txt"
 	output:
 		"{results}/{sample}/outs/immcantation/bcr/{sample}_finished.txt"
 	params:
-		job_name  = "{sample}_immcantation",
-		memory    = "select[mem>100] rusage[mem=100]",
 		fasta     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_b/filtered_contig.fasta",
 		annot     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_b/filtered_contig_annotations.csv",
 		outdir    = "{results}/{sample}/outs/immcantation/bcr"
+	resources:
+		slurm_extra=lambda wildcards: (
+			f"--qos=normal "
+			f"--output={wildcards.results}/logs/immcantation/{wildcards.sample}_fastq.out "
+			f"--error={wildcards.results}/logs/immcandataion/{wildcards.sample}_fastq.err"
+		)
 	singularity:
 		config["IMMCANTATION_CONTAINER"]
-	log:
-		"{results}/logs/immcantation/immcantation_{sample}"
-	threads:
-		10
 	shell:
 		"""
 		AssignGenes.py igblast \
@@ -40,19 +40,21 @@ rule igblast_bcr:
 # The -b is a path within the container. It should not need to be changed.
 rule igblast_tcr:
 	input:
-		"{results}/logs/{sample}_count_done.txt"
+		"{results}/snake_outs/{sample}_moved_files.txt"
 	output:
 		"{results}/{sample}/outs/immcantation/tcr/{sample}_finished.txt"
 	params:
-		job_name  = "{sample}_immcantation",
-		memory    = "select[mem>100] rusage[mem=100]",
 		fasta     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_t/filtered_contig.fasta",
 		annot     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_t/filtered_contig_annotations.csv",
 		outdir    = "{results}/{sample}/outs/immcantation/tcr"
+	resources:
+		slurm_extra=lambda wildcards: (
+			f"--qos=normal "
+			f"--output={wildcards.results}/logs/immcantation/{wildcards.sample}_tcr.out "
+			f"--error={wildcards.results}/logs/immcandataion/{wildcards.sample}_tcr.err"
+		)
 	singularity:
 		config["IMMCANTATION_CONTAINER"]
-	log:
-		"{results}/logs/immcantation/immcantation_{sample}"
 	threads:
 		10
 	shell:
@@ -81,13 +83,14 @@ rule make_clone_input:
 		"{results}/{sample}/outs/immcantation/bcr/filtered_contig_igblast_db-pass.tsv"
 	output:
 		"{results}/{sample}/outs/immcantation/bcr/filtered_contig_igblast_db-pass_sample.tsv"
-	params:
-		job_name    = "make_input",
-		memory      = "select[mem>5] rusage[mem=5]",
+	resources:
+		slurm_extra=lambda wildcards: (
+			f"--qos=normal "
+			f"--output={wildcards.results}/logs/immcantation/{wildcards.sample}_make_input.out "
+			f"--error={wildcards.results}/logs/immcandataion/{wildcards.sample}_make_input.err"
+		)
 	singularity:
 		config["IMMCANTATION_CONTAINER"]
-	log:
-		"{results}/logs/make_input/{sample}_add_sample_name"
 	threads:
 		1
 	shell:
@@ -104,13 +107,14 @@ rule make_clone_input2:
 			)
 	output:
 		"{results}/R_analysis/merged/files/immcantation_combined.tsv"
-	params:
-		job_name    = "make_input",
-		memory      = "select[mem>5] rusage[mem=5]"
+	resources:
+		slurm_extra=lambda wildcards: (
+			f"--qos=normal "
+			f"--output={wildcards.results}/logs/immcantation/{wildcards.sample}_make_input2.out "
+			f"--error={wildcards.results}/logs/immcandataion/{wildcards.sample}_make_input2.err"
+		)
 	singularity:
 		config["IMMCANTATION_CONTAINER"]
-	log:
-		"{results}/logs/make_input/combine_samples"
 	threads:
 		1
 	shell:
@@ -129,14 +133,18 @@ rule define_clones:
 		sample_output = "{results}/R_analysis/merged/define_clones/immcantation_combined_clone-pass_sample.tsv",
 		all_output = "{results}/R_analysis/merged/define_clones/immcantation_combined_clone-pass.tsv"
 	params:
-		job_name    = "call_clones",
-		memory      = "select[mem>100] rusage[mem=100]",
+		# job_name    = "call_clones",
+		# memory      = "select[mem>100] rusage[mem=100]",
 		outdir      = "{results}/R_analysis/merged/define_clones",
 		distance    = 0.15
+	resources:
+		slurm_extra=lambda wildcards: (
+			f"--qos=normal "
+			f"--output={wildcards.results}/logs/immcantation/{wildcards.sample}_define_clones.out "
+			f"--error={wildcards.results}/logs/immcandataion/{wildcards.sample}_define_clones.err"
+		)
 	singularity:
 		config["IMMCANTATION_CONTAINER"]
-	log:
-		"{results}/logs/define_clones/define_clones"
 	threads:
 		10
 	shell:

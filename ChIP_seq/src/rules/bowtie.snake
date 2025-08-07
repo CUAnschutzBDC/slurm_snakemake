@@ -57,6 +57,7 @@ rule align:
         out_dir    = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim")
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/bowtie2/bowtie2_{wildcards.sample}_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/bowtie2/bowtie2_{wildcards.sample}_{wildcards.trim_method}_trim.err"
         )
@@ -120,6 +121,7 @@ rule aligment_stats:
         "{results}/bowtie2_{trim_method}_trim/bowtie_stats_finished.txt"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/bowtie2_stats/bowtie2_stats_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/bowtie2_stats/bowtie2_stats_{wildcards.trim_method}_trim.err"
         ) 
@@ -155,6 +157,7 @@ rule remove_mito:
         mt_bam = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_remove_mt.bam"),
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/remove_mito/remove_mito_{wildcards.sample}_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/remove_mito/remove_mito_{wildcards.sample}_{wildcards.trim_method}_trim.err"
         )
@@ -202,6 +205,7 @@ rule mark_duplicates:
         dup_bam    = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_mark_dup.bam")
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/mark_duplicates/mark_duplicates_{wildcards.sample}_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/mark_duplicates/mark_duplicates_{wildcards.sample}_{wildcards.trim_method}_trim.err"
         )
@@ -237,6 +241,7 @@ rule remove_duplicate_reads:
         dup_bam        = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_mark_dup.bam")
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/remove_duplicate_reads/remove_duplicate_reads_{wildcards.sample}_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/remove_duplicate_reads/remove_duplicate_reads_{wildcards.sample}_{wildcards.trim_method}_trim.err"
         )
@@ -289,6 +294,7 @@ rule dup_stats:
         directory = "{results}/bowtie2_{trim_method}_trim"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/dup_stats/dup_stats_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/dup_stats/dup_stats_{wildcards.trim_method}_trim.err"
         )

@@ -30,6 +30,7 @@ rule frip:
        GENERAL_CONTAINER
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/featureCounts_{wildcards.input_type}/featureCounts_{wildcards.sample}_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/featureCounts_{wildcards.input_type}/featureCounts_{wildcards.sample}_{wildcards.trim_method}_trim.err"
         )
@@ -56,6 +57,7 @@ rule combine_frip:
         out_file = "{results}/featureCounts_{trim_method}_trim_{input_type}/combined_frip.tsv"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/combine_frip/combine_frip_{wildcards.trim_method}_trim_{wildcards.input_type}.out "
             f"--error={wildcards.results}/logs/combine_frip/combine_frip_{wildcards.trim_method}_trim_{wildcards.input_type}.err"
         )

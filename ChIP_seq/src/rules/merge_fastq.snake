@@ -32,6 +32,7 @@ rule merge_fastq:
 		R2_out       = os.path.join(RESULTS2, "merged_fastqs", "{sample}_R2.fastq.gz"),
 	resources:
 		slurm_extra=lambda wildcards: (
+			f"--qos=normal "
 			f"--output={wildcards.results}/logs/merge_fastq/{wildcards.sample}_merge_fastq.out "
 			f"--error={wildcards.results}/logs/merge_fastq/{wildcards.sample}_merge_fastq.err"
 		)

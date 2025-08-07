@@ -50,6 +50,7 @@ rule count:
         "{results}/featureCount_{trim_method}_trim/{sample}_finished.txt"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/featureCounts/featureCounts_{wildcards.sample}_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/featureCounts/featureCounts_{wildcards.sample}_{wildcards.trim_method}_trim.err"
         )
@@ -87,6 +88,7 @@ rule count_table:
         "{results}/{project}_countTable_{trim_method}_trim.txt"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/featureCounts/{wildcards.project}_countTable_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/featureCounts/{wildcards.project}_countTable_{wildcards.trim_method}_trim.err"
         )

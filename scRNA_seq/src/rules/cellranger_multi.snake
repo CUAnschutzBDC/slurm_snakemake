@@ -46,6 +46,7 @@ rule merge_fastqs:
         vdj_b_dict = SAMPLE_DICT_VDJ_B
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/merge_fastq/{wildcards.sample}_fastq.out "
             f"--error={wildcards.results}/logs/merge_fastq/{wildcards.sample}_fastq.err"
         )
@@ -185,6 +186,7 @@ rule create_sample_csv:
         vdj_b_dict = SAMPLE_DICT_VDJ_B
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/cellranger_csv/{wildcards.sample}_cellranger.out "
             f"--error={wildcards.results}/logs/cellranger_csv/{wildcards.sample}_cellranger.err"
         )
@@ -293,6 +295,7 @@ rule cellranger_count:
         cellranger = CELLRANGER_PATH
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/cellranger/{wildcards.sample}_cellranger.out "
             f"--error={wildcards.results}/logs/cellranger/{wildcards.sample}_cellranger.err"
         )
@@ -375,6 +378,7 @@ rule create_aggr_csv:
         scratch    = RESULTS2
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/aggr_csv/{wildcards.group}_aggr_csv.out "
             f"--error={wildcards.results}/logs/aggr_csv/{wildcards.group}_aggr_csv.err"
         )
@@ -418,6 +422,7 @@ rule run_aggr:
         results  = RESULTS
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/aggr/{wildcards.group}_aggr.out "
             f"--error={wildcards.results}/logs/aggr/{wildcards.group}_aggr.err"
         )
@@ -449,6 +454,7 @@ rule copy_files:
         experiment = _find_experiment_type
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/copy/{wildcards.sample}_copy.out "
             f"--error={wildcards.results}/logs/copy/{wildcards.sample}_copy.err"
         )

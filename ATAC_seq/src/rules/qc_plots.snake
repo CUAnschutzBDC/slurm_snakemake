@@ -42,6 +42,7 @@ rule atac_qc:
        R_CONTAINER
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/atac_qc/atac_qc_{wildcards.sample}_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/atac_qc/atac_qc_{wildcards.sample}_{wildcards.trim_method}_trim.err"
         )
@@ -67,6 +68,7 @@ rule diffbind:
        R_CONTAINER
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/diffbind/diffbind_{wildcards.peak_caller}_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/diffbind/diffbind_{wildcards.peak_caller}_{wildcards.trim_method}_trim.err"
         )
@@ -88,6 +90,7 @@ rule combine_tss:
        R_CONTAINER
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/combine_tss/combine_tss_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/combine_tss/combine_tss_{wildcards.trim_method}_trim.err"
         )

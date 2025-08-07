@@ -8,6 +8,7 @@ rule qc_plots:
         completed_file = "{results}/quality_{trim_method}_trim.html"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/qc_plots/qc_plots_{wildcards.trim_method}.out "
             f"--error={wildcards.results}/logs/qc_plots/qc_plots_{wildcards.trim_method}.err"
         )

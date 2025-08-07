@@ -32,6 +32,7 @@ rule bbduk:
         "{results}/bbduk_trim/{sample}.txt"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/trimming/bbduk_{wildcards.sample}.out "
             f"--error={wildcards.results}/logs/trimming/bbduk_{wildcards.sample}.err"
         )
@@ -77,6 +78,7 @@ rule cutadapt:
         "{results}/cutadapt_trim/{sample}.txt"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/trimming/cutadapt_{wildcards.sample}.out "
             f"--error={wildcards.results}/logs/trimming/cutadapt_{wildcards.sample}.err"
         )
@@ -121,6 +123,7 @@ rule no_trim:
         "{results}/no_trim/{sample}.txt"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/trimming/no_{wildcards.sample}.out "
             f"--error={wildcards.results}/logs/trimming/no_{wildcards.sample}.err"
         )

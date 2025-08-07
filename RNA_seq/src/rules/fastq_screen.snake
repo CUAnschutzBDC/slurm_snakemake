@@ -24,6 +24,7 @@ rule make_genomes:
         out_dir = FASTQ_SCREEN_DATA
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/fastq_screen/fastq_screen_genome_trim.out "
             f"--error={wildcards.results}/logs/fastq_screen/fastq_screen_genome_trim.err"
         )
@@ -50,6 +51,7 @@ rule fastq_screen:
         out_dir = "{results}/fastq_screen"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/fastq_screen/fastq_screen_align.out "
             f"--error={wildcards.results}/logs/fastq_screen/fastq_screen_align.err"
         )
@@ -75,6 +77,7 @@ rule fastq_screen_plot:
         out_dir = "{results}/fastq_screen"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/fastq_screen/fastq_screen_plot.out "
             f"--error={wildcards.results}/logs/fastq_screen/fastq_screen_plot.err"
         )

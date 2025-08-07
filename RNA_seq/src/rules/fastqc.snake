@@ -68,6 +68,7 @@ rule fastqc:
         file = "{results}/fastqc_pre_trim/fastqc_{sample}_summary_untrimmed.txt"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/fastqc_pre_trim/fastqc_{wildcards.sample}_untrimmed.out "
             f"--error={wildcards.results}/logs/fastqc_pre_trim/fastqc_{wildcards.sample}_untrimmed.err"
         )
@@ -96,6 +97,7 @@ rule fastqc_trim:
         file      = "{results}/fastqc_{trim_method}/fastqc_{sample}_summary_trimmed.txt"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/fastqc_{wildcards.trim_method}/fastqc_{wildcards.sample}_trimmed.out "
             f"--error={wildcards.results}/logs/fastqc_{wildcards.trim_method}/fastqc_{wildcards.sample}_trimmed.err"
         )
@@ -135,6 +137,7 @@ rule fastqc_summary:
         "{results}/fastqc_{trim_method}_summary_{trim}.tsv"
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/fastqc_{wildcards.trim_method}/summary_{wildcards.trim}.out "
             f"--error={wildcards.results}/logs/fastqc_{wildcards.trim_method}/summary_{wildcards.trim}.err"
         )

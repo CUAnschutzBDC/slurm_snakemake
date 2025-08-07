@@ -45,6 +45,7 @@ rule macs3:
         qvalue      = QVALUE
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/macs3_input/macs3_{wildcards.sample}_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/macs3_input/macs3_{wildcards.sample}_{wildcards.trim_method}_trim.err"
         )
@@ -80,6 +81,7 @@ rule overlapping_peaks:
         command  = _build_command
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/overlapping_peaks/overlapping_peaks_{wildcards.sample}_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/overlapping_peaks/overlapping_peaks_{wildcards.sample}_{wildcards.trim_method}_trim.err"
         )
@@ -103,6 +105,7 @@ rule macs3_no_input:
         qvalue      = QVALUE
     resources:
         slurm_extra=lambda wildcards: (
+            f"--qos=normal "
             f"--output={wildcards.results}/logs/macs3_alone/macs3_{wildcards.sample}_{wildcards.trim_method}_trim.out "
             f"--error={wildcards.results}/logs/macs3_alone/macs3_{wildcards.sample}__{wildcards.trim_method}_trim.err"
         )
