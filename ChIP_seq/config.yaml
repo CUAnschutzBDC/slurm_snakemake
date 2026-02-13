@@ -2,7 +2,7 @@
 
 # The path to the scratch direcotry.
 SCRATCH_DIR:
-    "/scratch/alpine/kwellswrasman@xsede.org"
+    "/scratch/alpine/krwe0001_amc"
 
 # The path to your working directory. Leaving this blank will just make it so this full path
 # is in your scratch space
@@ -18,7 +18,7 @@ SAMPLE_TABLE:
 
 # Project the name of the project
 PROJECT:
-  "RA_chip"
+  "KLF4_Chip"
 
 # Reference. This should be the path to a directory created using bowtie2. Include
 # The prefix of the aligment files

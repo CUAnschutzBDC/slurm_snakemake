@@ -6,6 +6,8 @@ use-apptainer: True
 default-resources:
     slurm_partition: "amilan"
     slurm_account:   "amc-general"
+    runtime: 60
+    mem: "4GB"
 
 set-resources:
     make_genomes:
@@ -46,7 +48,7 @@ set-resources:
         mem: "1GB"
     count:
         runtime: 30
-        mem_mb: "1GB"
+        mem: "1GB"
     count_table:
         runtime: 10
         mem: "1GB"

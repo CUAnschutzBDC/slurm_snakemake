@@ -6,6 +6,8 @@ use-apptainer: True
 default-resources:
     slurm_partition: "amilan"
     slurm_account:   "amc-general"
+    runtime: 60
+    mem: "4GB"
 
 set-resources:
     merge_fastqs:
@@ -32,3 +34,9 @@ set-resources:
     run_dropkick:
         runtime: 30
         mem: "200GB"
+    run_scar:
+        runtime: 60
+        mem: "100GB"
+    igblast_bcr:
+        runtime: 60
+        mem: "3GB"

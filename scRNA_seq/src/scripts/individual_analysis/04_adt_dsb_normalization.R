@@ -6,6 +6,7 @@ library(scAnalysisR)
 
 source(here("src", "scripts", "common_setup.R"))
 
+HTO <- FALSE
 if(ADT){
   # Load in raw data
   sample_path <- file.path(results_dir, sample, "outs", "per_sample_outs", 
@@ -16,8 +17,15 @@ if(ADT){
     
     # Load in HTOs and demultiplex
     protein_data <- sample_data[["Antibody Capture"]]
-    hashtag_data <- protein_data[grepl("Hashtag", rownames(protein_data)), ]
-    ADT_data <- protein_data[!grepl("Hashtag", rownames(protein_data)), ]
+    if(!is.null(hash_ident)){
+      hashtag_data <- protein_data[rownames(protein_data) %in% hash_ident, ]
+      ADT_data <- protein_data[!rownames(protein_data) %in% hash_ident, ]
+      
+    } else {
+      hashtag_data <- protein_data[grepl("Hashtag", rownames(protein_data)), ]
+      ADT_data <- protein_data[!grepl("Hashtag", rownames(protein_data)), ]
+      
+    }
     sample_object <- CreateSeuratObject(counts = hashtag_data,
                                         assay = "HTO")
     

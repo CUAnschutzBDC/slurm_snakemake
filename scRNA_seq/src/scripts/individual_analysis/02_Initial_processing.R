@@ -39,7 +39,8 @@ seurat_object <- create_seurat_object(
   count_path = results_dir,
   ADT = ADT, hashtag = HTO,
   tenx_structure = tenx_structure,
-  min_features = 200
+  min_features = 200,
+  hashtag_idents = hash_ident
 )
 
 # Add mitochondrial percent
@@ -59,7 +60,23 @@ if (ADT) {
   scar_counts <- scar_counts[ , colnames(scar_counts) %in%
                                 colnames(seurat_object)]
   
-  seurat_object[["SCAR_ADT"]] <- CreateAssayObject(counts = scar_counts)
+  if(HTO){
+    scar_hto <- scar_counts[rownames(scar_counts) %in% hash_ident,]
+    
+    scar_adt <- scar_counts[!rownames(scar_counts) %in% hash_ident,]
+    
+    seurat_object[["SCAR_HTO"]] <- CreateAssayObject(counts = scar_hto)
+    
+    seurat_object <- NormalizeData(
+      seurat_object, assay = "SCAR_HTO",
+      normalization.method = "CLR",
+      margin = 2
+    )  
+  } else {
+    scar_adt <- scar_counts
+  }
+
+  seurat_object[["SCAR_ADT"]] <- CreateAssayObject(counts = scar_adt)
   
   seurat_object <- NormalizeData(
     seurat_object, assay = "SCAR_ADT",
@@ -187,5 +204,14 @@ if (VDJ_B){
     include_mutations = TRUE)
   
 }
+
+# HTO demux
+if(HTO){
+  seurat_object <- HTODemux(seurat_object, assay = "HTO",
+                          positive.quantile = 0.99)
+
+  graphics.off()
+}
+
 saveRDS(seurat_object, file = file.path(save_dir, "rda_obj",
                                         "seurat_start.rds"))

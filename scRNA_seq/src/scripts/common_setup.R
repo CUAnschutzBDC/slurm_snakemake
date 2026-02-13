@@ -32,7 +32,7 @@ VDJ_T <- sample_info$VDJ_T
 VDJ_B <- sample_info$VDJ_B
 RNA_pcs <- sample_info$PCs
 batch_correction <- sample_info$batch_correction
-hash_ident <- sample_info$hash_ident
+hash_ident <- str_split(sample_info$hash_ident, pattern = ",")[[1]]
 resolution <- sample_info$resolution
 run_adt_umap <- sample_info$adt_umap
 

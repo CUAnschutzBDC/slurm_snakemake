@@ -3,12 +3,14 @@
 #SBATCH --job-name=rstudio
 #SBATCH --ntasks=4
 #SBATCH --time=4:00:00
-#SBATCH --mem=4gb
+#SBATCH --mem=3gb
 #SBATCH --output=logs/rstudio.out
-#SBATCH --partition=acompile
-#SBATCH --qos=compile
+#SBATCH --partition=amilan
+#SBATCH --qos=normal
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=kristen.wells-wrasman@cuanschutz.edu
+
+module load python
 
 # Set up environment
 export ALPINE_SCRATCH=/gpfs/alpine1/scratch/$USER
@@ -24,7 +26,7 @@ LOGIN_HOST=login-ci.rc.colorado.edu
 RSA_KEY=/Users/wellskr/.ssh/id_rsa
 
 # path to sif file on HPC
-SINGULARITY_IMAGE="rnaseq_r_v1.sif"
+SINGULARITY_IMAGE="rnaseq_rv2_dockerhub.sif"
 
 # Change home path so that rstudio saves files to projects instead
 export HOME=/projects/${USER}

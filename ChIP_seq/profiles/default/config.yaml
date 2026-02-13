@@ -9,6 +9,8 @@ use-apptainer: True
 default-resources:
     slurm_partition: "amilan"
     slurm_account:   "amc-general"
+    runtime: 60
+    mem: "4GB"
 
 set-resources:
     fastq_screen:

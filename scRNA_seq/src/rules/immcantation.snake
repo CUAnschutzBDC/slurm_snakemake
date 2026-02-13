@@ -85,7 +85,6 @@ rule make_clone_input:
 		"{results}/{sample}/outs/immcantation/bcr/filtered_contig_igblast_db-pass_sample.tsv"
 	resources:
 		slurm_extra=lambda wildcards: (
-			f"--qos=normal "
 			f"--output={wildcards.results}/logs/immcantation/{wildcards.sample}_make_input.out "
 			f"--error={wildcards.results}/logs/immcandataion/{wildcards.sample}_make_input.err"
 		)

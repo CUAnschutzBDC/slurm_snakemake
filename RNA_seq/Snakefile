@@ -141,12 +141,12 @@ rule all:
         expand(
             "{results}/rmats_{trim_method}_trim/{group_compare}/combined_JCEC.txt",
             results = RESULTS, trim_method = TRIM_METHOD, group_compare = group_comparisons
+        ),
+        expand(
+          "{results}/{project}_quality_{trim_method}_trim.html",
+          results = RESULTS, project = PROJECT,
+          trim_method = TRIM_METHOD
         )
-        # expand(
-        #   "{results}/{project}_quality_{trim_method}_trim.html",
-        #   results = RESULTS, project = PROJECT,
-        #   trim_method = TRIM_METHOD
-        # )
 
 # Snakes to run
 include: "src/rules/fastqc.snake"

@@ -1,0 +1,39 @@
+rule run_souporcell:
+	input:
+		"{results}/snake_outs/{sample}_moved_files.txt"
+	output:
+		"{results}/snake_outs/{sample}_souporcell.txt"
+	params:
+		scratch  = RESULTS2,
+		genome   = GENOME,
+		bam      = os.path.join(RESULTS2, "{sample}/outs/per_sample_outs/{sample}/count/sample_alignments.bam"),
+		barcodes = "{results}/{sample}/outs/per_sample_outs/{sample}/count/sample_filtered_feature_bc_matrix/barcodes.tsv.gz",
+		outdir   = "{results}/{sample}/souporcell",
+		outdir_scratch = os.path.join(RESULTS2, "{sample}/souporcell")
+	resources:
+		slurm_extra=lambda wildcards: (
+			f"--output={wildcards.results}/logs/souporcell/{wildcards.sample}_souporcell.out "
+			f"--error={wildcards.results}/logs/souporcell/{wildcards.sample}_souporcell.err"
+		)
+	threads:
+		8
+	singularity:
+		config["SOUPORCELL_CONTAINER"]   
+	shell:
+		"""
+		mkdir -p {params.outdir}
+		mkdir -p {params.outdir_scratch}
+		souporcell_pipeline.py \
+			-i {params.bam} \
+			-b {params.barcodes} \
+			-f {params.genome}/fasta/genome.fa \
+			-t {threads} \
+			-o {params.outdir_scratch} \
+			-k 4
+
+		rsync -avz --progress {params.outdir_scratch}/clusters.tsv {params.outdir}
+		rsync -avz --progress {params.outdir_scratch}/cluster_genotypes.vcf {params.outdir}
+		rsync -avz --progress {params.outdir_scratch}/ambient_rna.txt {params.outdir}
+
+		touch {output}
+		"""

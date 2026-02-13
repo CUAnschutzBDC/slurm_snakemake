@@ -19,7 +19,7 @@ def _find_experiment_type(wildcards):
 
 def _find_run_type(wildcards):
     if SAMPLE_DICT_VDJ_T[wildcards.sample] or SAMPLE_DICT_VDJ_B[wildcards.sample]:
-        reuturn("VDJ")
+        return("VDJ")
         # Run cellranger count for CITE-seq and gene expression
     elif SAMPLE_DICT_ADT[wildcards.sample]:
         return("CITE")
@@ -49,6 +49,7 @@ rule merge_fastqs:
             f"--qos=normal "
             f"--output={wildcards.results}/logs/merge_fastq/{wildcards.sample}_fastq.out "
             f"--error={wildcards.results}/logs/merge_fastq/{wildcards.sample}_fastq.err"
+
         )
     threads:
         1   
@@ -62,7 +63,6 @@ rule merge_fastqs:
                 fq_paths = os.path.join(directory, sample + "*" + read + "*.fastq.gz")
                 fq_paths = glob.glob(os.path.abspath(fq_paths))
                 if fq_paths:
-                    print(fq_paths)
                     if re.search(sample + "\.*_[0-9]" + FASTQ_INFO, fq_paths[0]):
                         path_dict = {}
                         fastq_count = 0
@@ -74,7 +74,7 @@ rule merge_fastqs:
                     else:
                         [path_list.append(x) for x in fq_paths]
 
-            if not path_list:
+            if not path_list and read != "_I2_":
                 sys.exit("ERROR: No fastqs found for " + sample + ".") 
                           
             return path_list
@@ -90,48 +90,85 @@ rule merge_fastqs:
 
             return cmds
 
+        def _get_corresponding_fastq(r1_path, read_type, params):
+            """Get the corresponding R2/I1/I2 fastq path from an R1 path"""
+            return r1_path.replace("_R1_", f"_{read_type}_")
+
+
         # Function to merge fastq files or create symlink
         def _merge_fastqs(sample, merged_name, raw_dir):
 
-            # Merge fastqs for each read or create a symlink
-            for read in ["_R1_", "_R2_", "_I1_"]:
-                names = sample.split(",")
-
-                # Create list of commands for creating symlinks
-                if len(names) == 1:
-                    path_list = _get_fq_paths(names[0], read, raw_dir)
-
-                    cmd_list = []
-                    for x in path_list:
-                        if re.search("_[0-9]" + params.fq_info, x):
-                            fastq_tail = re.search("_[0-9]" + params.fq_info, x).group(0)
+            """
+            Merge or symlink fastq files ensuring corresponding read pairs stay together.
+            Uses R1 files as reference to find matching R2/I1/I2 files.
+            """
+            names = sample.split(",")
+            
+            # First get all R1 files as our reference
+            r1_files = []
+            for name in names:
+                r1_paths = _get_fq_paths(name, "_R1_", raw_dir)
+                r1_files.extend(r1_paths)
+            
+            # Sort R1 files to ensure consistent ordering
+            r1_files.sort()
+            
+            # Define possible read types (R2 is required, I1/I2 are optional)
+            read_types = ["R2"]
+            
+            # Check if I1/I2 files exist for any of the R1 files
+            sample_r1 = r1_files[0] if r1_files else ""
+            if sample_r1:
+                if os.path.exists(_get_corresponding_fastq(sample_r1, "I1", params)):
+                    read_types.append("I1")
+                if os.path.exists(_get_corresponding_fastq(sample_r1, "I2", params)):
+                    read_types.append("I2")
+            
+            # Process each read type (R1 and corresponding files)
+            for read_type in ["R1"] + read_types:
+                if len(names) == 1:  # Single sample - create symlinks
+                    for r1_file in r1_files:
+                        current_file = r1_file if read_type == "R1" else _get_corresponding_fastq(r1_file, read_type, params)
+                        
+                        # Skip if corresponding file doesn't exist
+                        if not os.path.exists(current_file):
+                            print(f"Warning: Missing {read_type} file corresponding to {r1_file}")
+                            continue
+                        
+                        # Get the fastq tail (lane number + extension)
+                        if re.search("_[0-9]" + params.fq_info, current_file):
+                            fastq_tail = re.search("_[0-9]" + params.fq_info, current_file).group(0)
                         else:
-                            fastq_tail = re.search(params.fq_info, x).group(0)
+                            fastq_tail = re.search(params.fq_info, current_file).group(0)
+                        
                         merged_path = os.path.join(params.fq_dir, merged_name + fastq_tail)
-                        cmd_list += ["ln -s " + x + " " + merged_path]
-
-                # Create list of commands for merging fastqs
-                else:
-                    path_dict = {}
-
-                    for name in names:
-                        path_list = []
-                        [path_list.append(x) for x in _get_fq_paths(name, read, raw_dir)]
-                        path_dict[name] = path_list
-                    path_dict
-                    path_list = list(zip(path_dict[names[0]], path_dict[names[1]]))
-                    cmd_list = []
-                    for i in path_list:
-                        if re.search("_[0-9]" + params.fq_info, i[0]):
-                            fastq_tail = re.search("_[0-9]" + params.fq_info, i[0]).group(0)
+                        cmd = f"ln -s {current_file} {merged_path}"
+                        print(cmd)
+                        subprocess.run(cmd, shell=True)
+                
+                else:  # Multiple samples - merge files
+                    files_to_merge = []
+                    for r1_file in r1_files:
+                        current_file = r1_file if read_type == "R1" else _get_corresponding_fastq(r1_file, read_type, params)
+                        
+                        # Skip if corresponding file doesn't exist
+                        if not os.path.exists(current_file):
+                            print(f"Warning: Missing {read_type} file corresponding to {r1_file}")
+                            continue
+                        
+                        files_to_merge.append(current_file)
+                    
+                    if files_to_merge:
+                        # Get the fastq tail from the first file
+                        if re.search("_[0-9]" + params.fq_info, files_to_merge[0]):
+                            fastq_tail = re.search("_[0-9]" + params.fq_info, files_to_merge[0]).group(0)
                         else:
-                            fastq_tail = re.search(params.fq_info, i[0]).group(0)                        
+                            fastq_tail = re.search(params.fq_info, files_to_merge[0]).group(0)
+                        
                         merged_path = os.path.join(params.fq_dir, merged_name + fastq_tail)
-
-                        cmd_list.append(_build_merge_cmd(i, merged_path))
-
-                for cmd in cmd_list:
-                    subprocess.run(cmd, shell = True)
+                        cmd = _build_merge_cmd(files_to_merge, merged_path)
+                        print(cmd)
+                        subprocess.run(cmd, shell=True)
 
         # Find rna, adt, vdj, and data dir for the sample
         rna = params.rna_dict[wildcards.sample]
@@ -218,6 +255,7 @@ rule create_sample_csv:
             with open(sample_csv, "w") as csv:
                 csv.write("[gene-expression]\n")
                 csv.write("reference," + params.gene_ref + "\n")
+                csv.write("create-bam,true\n")
                 if params.adt_dict[sample_names]:
                     csv.write("[feature]\n")
                     csv.write("reference," + params.adt_ref + "\n")
@@ -306,8 +344,6 @@ rule cellranger_count:
     shell:
         """
         echo $PATH
-        cp {params.template} {params.scratch}
-        
         # Run cellranger multi for vdj (CITE-seq) and gene expression
         if [ "{params.run_type}" == "VDJ" ]
         then
@@ -319,8 +355,7 @@ rule cellranger_count:
                 --id={wildcards.sample} \
                 --csv=$sample_csv \
                 --jobmode={params.template} \
-                --maxjobs={params.max_jobs} \
-                --create-bam true
+                --maxjobs={params.max_jobs} 
 
         # Run cellranger count for CITE-seq and gene expression
         elif [ "{params.run_type}" == "CITE" ]
@@ -422,7 +457,6 @@ rule run_aggr:
         results  = RESULTS
     resources:
         slurm_extra=lambda wildcards: (
-            f"--qos=normal "
             f"--output={wildcards.results}/logs/aggr/{wildcards.group}_aggr.out "
             f"--error={wildcards.results}/logs/aggr/{wildcards.group}_aggr.err"
         )
@@ -466,47 +500,64 @@ rule copy_files:
         if [ {params.experiment} == "RNA" ]; then
             save_dir={wildcards.results}/{wildcards.sample}/outs
             mkdir -p $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/web_summary.html $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/*.bam* $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix.h5 $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix.h5 $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/web_summary.html $save_dir
         # Add in rules to copy other file types
         elif [ {params.experiment} == "VDJT_VDJB" ]; then
             save_dir={wildcards.results}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}
             full_save_dir=${{save_dir}}/count
             mkdir -p $full_save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_b $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_t $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix.h5 $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/*bam* $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_b $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_t $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix.h5 $full_save_dir
 
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
+
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
          # Add in rules to copy other file types
         elif [ {params.experiment} == "VDJT" ]; then
             save_dir={wildcards.results}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}
             full_save_dir=${{save_dir}}/count
             mkdir -p $full_save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_t $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix.h5 $full_save_dir            
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/*bam* $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_t $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix.h5 $full_save_dir
 
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
+
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
          # Add in rules to copy other file types
         elif [ {params.experiment} == "VDJB" ]; then
             save_dir={wildcards.results}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}
             full_save_dir=${{save_dir}}/count
             mkdir -p $full_save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_b $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix.h5 $full_save_dir            
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/*bam* $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_b $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix.h5 $full_save_dir
 
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
          # Add in rules to copy other file types
         elif [ {params.experiment} == "ADT" ]; then
             save_dir={wildcards.results}/{wildcards.sample}/outs
             mkdir -p $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix $save_dir
-            rsync -avz --progress {params.scratch}/{wildcards.sample}/outs/web_summary.html $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/*bam* $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix.h5 $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix.h5 $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/web_summary.html $save_dir
         fi
 
         touch {output}

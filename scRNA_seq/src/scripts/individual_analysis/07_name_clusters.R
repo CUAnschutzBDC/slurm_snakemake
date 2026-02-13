@@ -114,9 +114,9 @@ if (ADT){
 # Published object #
 ####################
 
-ref_dir <- file.path(all_ref_dir, "pancreas/Baron_2016")
+ref_dir <- file.path(all_ref_dir, "pbmc/smith_2021")
 
-ref_mat <- read.csv(file.path(ref_dir, "clustifyr_human_reference.csv"),
+ref_mat <- read.csv(file.path(ref_dir, "clustifyr_reference.csv"),
                     header = TRUE, row.names = 1)
 
 DefaultAssay(seurat_data) <- "RNA"
@@ -125,7 +125,7 @@ grid::grid.newpage()
 
 cluster_res <- name_clusters(seurat_data, ref_mat,
                              save_dir = save_dir,
-                             save_name = "celltype_baron", ADT = TRUE,
+                             save_name = "celltype_bnd", ADT = TRUE,
                              assay = "RNA",
                              features = VariableFeatures(seurat_data),
                              clusters = "RNA_cluster",
@@ -133,22 +133,22 @@ cluster_res <- name_clusters(seurat_data, ref_mat,
 
 seurat_data <- cluster_res$object
 
-res_list_rna$baron_rna <- cluster_res$RNA
+res_list_rna$bnd_rna <- cluster_res$RNA
 
 grid::grid.newpage()
 
-all_celltypes <- c("RNA_celltype_baron")
+all_celltypes <- c("RNA_celltype_bnd")
 
-openxlsx::addWorksheet(wb = mapping_wb, sheetName = "baron_rna")
-openxlsx::writeData(wb = mapping_wb, sheet = "baron_rna",
-                    x = res_list_rna$baron_rna)
+openxlsx::addWorksheet(wb = mapping_wb, sheetName = "bnd_rna")
+openxlsx::writeData(wb = mapping_wb, sheet = "bnd_rna",
+                    x = res_list_rna$bnd_rna)
 
 if(ADT){
-  res_list_adt$baron_adt <- cluster_res$ADT
-  res_list_combined$baron_wnn <- cluster_res$WNN
+  res_list_adt$bnd_adt <- cluster_res$ADT
+  res_list_combined$bnd_wnn <- cluster_res$WNN
   all_celltypes <- c(all_celltypes,
-                     "ADT_celltype_baron",
-                     "combined_celltype_baron")
+                     "ADT_celltype_bnd",
+                     "combined_celltype_bnd")
   
   DefaultAssay(seurat_data) <- "ADT"
   
@@ -156,12 +156,12 @@ if(ADT){
   
   DefaultAssay(seurat_data) <- "RNA"
   
-  openxlsx::addWorksheet(wb = mapping_wb, sheetName = "baron_adt")
-  openxlsx::writeData(wb = mapping_wb, sheet = "baron_adt",
-                      x = res_list_adt$baron_adt)
-  openxlsx::addWorksheet(wb = mapping_wb, sheetName = "baron_combined")
-  openxlsx::writeData(wb = mapping_wb, sheet = "baron_combined",
-                      x = res_list_combined$baron_wnn)
+  openxlsx::addWorksheet(wb = mapping_wb, sheetName = "bnd_adt")
+  openxlsx::writeData(wb = mapping_wb, sheet = "bnd_adt",
+                      x = res_list_adt$bnd_adt)
+  openxlsx::addWorksheet(wb = mapping_wb, sheetName = "bnd_combined")
+  openxlsx::writeData(wb = mapping_wb, sheet = "bnd_combined",
+                      x = res_list_combined$bnd_wnn)
 }
 
 print(plotDimRed(seurat_data, col_by = all_celltypes,
@@ -171,8 +171,8 @@ print(plotDimRed(seurat_data, col_by = all_celltypes,
 
 # Merge dfs
 
-merge_dfs <- function(res1, res2, seurat_object, save_name, cluster_col){
-  seurat_res <- cbind(res1, res2)
+merge_dfs <- function(res_list, seurat_object, save_name, cluster_col){
+  seurat_res <- do.call(cbind, res_list)
   
   seurat_cluster <- cor_to_call(seurat_res) %>% 
     mutate(type = ifelse(r < cor_cutoff, "undetermined", type))

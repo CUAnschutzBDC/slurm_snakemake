@@ -372,6 +372,11 @@ rule all:
             "{results}/snake_outs/{sample}_moved_files.txt",
             results = RESULTS, sample = SAMPLES
         ),
+        # souporcell
+        expand(
+            "{results}/snake_outs/{sample}_souporcell.txt",
+            results = RESULTS, sample = SAMPLES
+        ),
         # expand(
         #     "{results}/snake_outs/{group}_csv_aggr_done.txt",
         #     results = RESULTS, group = AGGR_GROUP
@@ -384,6 +389,10 @@ rule all:
             "{results}/run_scripts/{sample}_run.txt",
             sample = script_name_dict.keys(), results = RESULTS
             ),
+        expand(
+            "{results}/R_analysis/{sample}/files/scar_denoised.csv",
+            results = RESULTS, sample = SAMPLES
+        )
 #         # expand(
 #         #     "{results}/logs/{sample}_velocyto_done.out",
 #         #     results = RESULTS, sample = SAMPLES
@@ -395,4 +404,6 @@ rule all:
 
 include: "src/rules/cellranger_multi.snake"
 include: "src/rules/run_rscripts.snake"
+include: "src/rules/souporcell.snake"
+include: "src/rules/immcantation.snake"
 # include: "src/rules/velocyto.snake"

@@ -9,6 +9,8 @@ source(here("src", "scripts", "common_setup.R"))
 # Read in data
 seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_start.rds"))
 
+test_genes <- c("JCHAIN")
+
 # Remove "negatives"
 if(HTO){
   Idents(seurat_data) <- "HTO_classification.global"
@@ -94,13 +96,17 @@ seurat_data$Doublet_finder <- seurat_data[[df_column]]
 # Remove the original name
 seurat_data[[df_column]] <- NULL
 
+test_genes <- test_genes[test_genes %in% rownames(seurat_data)]
+
 pdf(file.path(save_dir, "images", "doublet_finder.pdf"))
 
 print(plotDimRed(seurat_data, col_by = "Doublet_finder",
                  plot_type = "rna.umap"))
-print(plotDimRed(seurat_data, col_by = "Ins1", plot_type = "rna.umap"))
 
-print(plotDimRed(seurat_data, col_by = "Gcg", plot_type = "rna.umap"))
+if(length(test_genes) > 0){
+  print(plotDimRed(seurat_data, col_by = test_genes, plot_type = "rna.umap"))
+}
+
 
 dev.off()
 

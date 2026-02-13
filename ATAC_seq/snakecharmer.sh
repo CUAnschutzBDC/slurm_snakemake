@@ -29,5 +29,6 @@ snakemake \
     --latency-wait 60 \
     --rerun-incomplete \
     --workflow-profile profiles/default \
-    --ignore-incomplete
+    --keep-going \
+    --ignore-incomplete 
     
