@@ -344,6 +344,7 @@ rule cellranger_count:
     shell:
         """
         echo $PATH
+        export MRO_DISK_SPACE_CHECK=disable
         # Run cellranger multi for vdj (CITE-seq) and gene expression
         if [ "{params.run_type}" == "VDJ" ]
         then

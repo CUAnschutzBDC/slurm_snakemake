@@ -20,7 +20,7 @@ mkdir -p logs
 
 # path to directory on HPC for persistant storage of R packages
 USER_R_LIB=/projects/${USER}/R/RNA_seq/4.2
-LOGIN_HOST=login-ci.rc.colorado.edu
+LOGIN_HOST=login.rc.colorado.edu
 RSA_KEY=/Users/wellskr/.ssh/id_rsa
 
 # path to sif file on HPC
