@@ -6,18 +6,20 @@ import glob
 
 def _find_experiment_type(wildcards):
     # Check experiment type so the copying can be done correctly
-    if SAMPLE_DICT_VDJ_T[wildcards.sample] and SAMPLE_DICT_VDJ_B[wildcards.sample]:
+    main_sample = sample_info_dict[wildcards.sample]["parent"]
+    if SAMPLE_DICT_VDJ_T[main_sample] and SAMPLE_DICT_VDJ_B[main_sample]:
         return("VDJT_VDJB")
-    elif SAMPLE_DICT_VDJ_T[wildcards.sample]:
+    elif SAMPLE_DICT_VDJ_T[main_sample]:
         return("VDJT")
-    elif SAMPLE_DICT_VDJ_B[wildcards.sample]:
+    elif SAMPLE_DICT_VDJ_B[main_sample]:
         return("VDJB")
-    elif SAMPLE_DICT_ADT[wildcards.sample]:
+    elif SAMPLE_DICT_ADT[main_sample]:
         retrun("ADT")
     else:
         return("RNA")
 
 def _find_run_type(wildcards):
+
     if SAMPLE_DICT_VDJ_T[wildcards.sample] or SAMPLE_DICT_VDJ_B[wildcards.sample]:
         return("VDJ")
         # Run cellranger count for CITE-seq and gene expression
@@ -25,6 +27,11 @@ def _find_run_type(wildcards):
         return("CITE")
     else:
         return("Count")
+
+def get_copy_input(wildcards):
+    main_sample = sample_info_dict[wildcards.sample]["parent"]
+    path = os.path.join(wildcards.results, "snake_outs", main_sample + "_count_done.txt")
+    return path
 
 # Merge fastqs and create symlinks =============================================
 # This rule will either merge multiple fastqs into a single file or create a 
@@ -135,6 +142,8 @@ rule merge_fastqs:
                             print(f"Warning: Missing {read_type} file corresponding to {r1_file}")
                             continue
                         
+                        print(current_file)
+                        print(params.fq_info)
                         # Get the fastq tail (lane number + extension)
                         if re.search("_[0-9]" + params.fq_info, current_file):
                             fastq_tail = re.search("_[0-9]" + params.fq_info, current_file).group(0)
@@ -220,7 +229,8 @@ rule create_sample_csv:
         rna_dict   = SAMPLE_DICT_RNA,
         adt_dict   = SAMPLE_DICT_ADT,
         vdj_t_dict = SAMPLE_DICT_VDJ_T,
-        vdj_b_dict = SAMPLE_DICT_VDJ_B
+        vdj_b_dict = SAMPLE_DICT_VDJ_B,
+        sample_info = SAMPLE_INFO
     resources:
         slurm_extra=lambda wildcards: (
             f"--qos=normal "
@@ -276,6 +286,28 @@ rule create_sample_csv:
                 vdj_b_fastqs = _get_fastqs(sample_names + "_VDJ_B")
                 for fastq in vdj_b_fastqs:
                     csv.write("{},{},{}\n".format(fastq, fq_dir, "VDJ-B"))
+
+                # TODO
+                # Open the sample info
+                sample_df = pd.read_table(SAMPLE_INFO).set_index("sample", drop = False)
+                # get the row corresponding to your sample
+                row = sample_df.loc[wildcards.sample]
+
+                # extract the two values
+                on_chip_multiplex = row["on_chip_multiplex"]
+                on_chip_multiplex_file = row["on_chip_multiplex_file"]
+
+                # If on_chip_multiplex is TRUE
+                if on_chip_multiplex:
+                    # Write [samples]
+                    # Write sample_id,ocm_barcode_ids
+                    csv.write("[samples]\nsample_id,ocm_barcode_ids\n")
+                    # Open up the file found at on_chip_multiplex_file
+                    with open(on_chip_multiplex_file, "r") as multiplex_file:
+                        next(multiplex_file)
+                        # Write each sample,barcode
+                        for line in multiplex_file:
+                            csv.write(line)
 
         def _get_fastqs(sample_id):
             fq_path = os.path.join(params.fq_dir, sample_id + "*.fastq.gz")
@@ -481,12 +513,13 @@ rule run_aggr:
 
 rule copy_files:
     input:
-        "{results}/snake_outs/{sample}_count_done.txt"
+        get_copy_input
     output:
         "{results}/snake_outs/{sample}_moved_files.txt"
     params:
-        scratch    = RESULTS2,
-        experiment = _find_experiment_type
+        scratch     = RESULTS2,
+        experiment  = _find_experiment_type,
+        main_sample = lambda wildcards: sample_info_dict[wildcards.sample]["parent"]
     resources:
         slurm_extra=lambda wildcards: (
             f"--qos=normal "
@@ -499,66 +532,66 @@ rule copy_files:
         """
         echo {params.experiment}
         if [ {params.experiment} == "RNA" ]; then
-            save_dir={wildcards.results}/{wildcards.sample}/outs
+            save_dir={wildcards.results}/{params.main_sample}/outs
             mkdir -p $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/*.bam* $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix.h5 $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix.h5 $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/web_summary.html $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/filtered_feature_bc_matrix $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/*.bam* $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/raw_feature_bc_matrix $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/filtered_feature_bc_matrix.h5 $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/raw_feature_bc_matrix.h5 $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/web_summary.html $save_dir
         # Add in rules to copy other file types
         elif [ {params.experiment} == "VDJT_VDJB" ]; then
-            save_dir={wildcards.results}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}
+            save_dir={wildcards.results}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}
             full_save_dir=${{save_dir}}/count
             mkdir -p $full_save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix.h5 $full_save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/*bam* $full_save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_b $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_t $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix.h5 $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix.h5 $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/count/*bam* $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/vdj_b $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/vdj_t $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/multi/count/raw_feature_bc_matrix.h5 $full_save_dir
 
 
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
          # Add in rules to copy other file types
         elif [ {params.experiment} == "VDJT" ]; then
-            save_dir={wildcards.results}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}
+            save_dir={wildcards.results}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}
             full_save_dir=${{save_dir}}/count
             mkdir -p $full_save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix.h5 $full_save_dir            
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/*bam* $full_save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_t $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix.h5 $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix.h5 $full_save_dir            
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/count/*bam* $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/vdj_t $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/multi/count/raw_feature_bc_matrix.h5 $full_save_dir
 
 
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
          # Add in rules to copy other file types
         elif [ {params.experiment} == "VDJB" ]; then
-            save_dir={wildcards.results}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}
+            save_dir={wildcards.results}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}
             full_save_dir=${{save_dir}}/count
             mkdir -p $full_save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix.h5 $full_save_dir            
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/count/*bam* $full_save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/vdj_b $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/multi/count/raw_feature_bc_matrix.h5 $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/count/sample_filtered_feature_bc_matrix.h5 $full_save_dir            
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/count/*bam* $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/vdj_b $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/multi/count/raw_feature_bc_matrix $full_save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/multi/count/raw_feature_bc_matrix.h5 $full_save_dir
 
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/per_sample_outs/{wildcards.sample}/web_summary.html $save_dir
          # Add in rules to copy other file types
         elif [ {params.experiment} == "ADT" ]; then
-            save_dir={wildcards.results}/{wildcards.sample}/outs
+            save_dir={wildcards.results}/{params.main_sample}/outs
             mkdir -p $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/*bam* $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/filtered_feature_bc_matrix.h5 $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/raw_feature_bc_matrix.h5 $save_dir
-            rsync -avz --progress --no-group {params.scratch}/{wildcards.sample}/outs/web_summary.html $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/filtered_feature_bc_matrix $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/*bam* $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/raw_feature_bc_matrix $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/filtered_feature_bc_matrix.h5 $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/raw_feature_bc_matrix.h5 $save_dir
+            rsync -avz --progress --no-group {params.scratch}/{params.main_sample}/outs/web_summary.html $save_dir
         fi
 
         touch {output}

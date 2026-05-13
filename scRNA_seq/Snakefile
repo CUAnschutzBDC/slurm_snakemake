@@ -149,6 +149,57 @@ def ensure_directory_exists(path: str) -> str:
         os.makedirs(path)
     return _check_path(path)
 
+def build_sample_dict(sample_info_path):
+    """
+    Build a dictionary mapping final sample IDs to parent sample names.
+
+    For each row in the sample info table:
+    - If `on_chip_multiplex` is NA or missing, the sample maps to itself.
+    - Otherwise, the multiplex CSV specified in `on_chip_multiplex`
+      is opened and each `sample_id` in that file maps to the parent
+      sample name from the `sample` column.
+
+    Args:
+        sample_info_path (str): Path to the sample information TSV file.
+            The file must contain the columns:
+            - sample
+            - on_chip_multiplex
+
+    Returns:
+        dict: Dictionary where:
+            - keys are final sample IDs
+            - values are parent sample names
+    """
+
+    sample_dict = {}
+
+    sample_info = pd.read_csv(sample_info_path, sep="\t")
+
+    for _, row in sample_info.iterrows():
+
+        sample = row["sample"]
+        multiplex = row["on_chip_multiplex"]
+        multiplex_file = row["on_chip_multiplex_file"]
+
+        if multiplex:
+            multiplex_df = pd.read_csv(multiplex_file)
+
+            for multiplex_sample in multiplex_df["sample_id"]:
+
+                sample_dict[multiplex_sample] = {
+                    "parent": sample,
+                    "type": "multiplexed",
+                }
+
+        else:
+            sample_dict[sample] = {
+                "parent": sample,
+                "type": "single",
+            }
+
+
+    return sample_dict
+
 def build_general_scripts(scripts_run: dict) -> Tuple[dict, dict]:
     """
     Creates a dictionary containing a list of all scripts to run. Note, each of these
@@ -351,10 +402,14 @@ else:
 AGGR_GROUP = AGGR_GROUP or "none"
 VELOCYTO_GROUP = VELOCYTO_GROUP or "none"
 
-# Build script dicts
-script_dict, script_name_dict = build_script_dicts(SCRIPTS_RUN, SAMPLE_SCRIPTS, MERGE_SCRIPTS, SUBSET_SCRIPTS, SAMPLES)
 
-print(script_dict)
+sample_info_dict = build_sample_dict(SAMPLE_INFO)
+
+#print(sample_info_dict)
+# Build script dicts
+new_samples = sample_info_dict.keys()
+script_dict, script_name_dict = build_script_dicts(SCRIPTS_RUN, SAMPLE_SCRIPTS, MERGE_SCRIPTS, SUBSET_SCRIPTS, new_samples)
+#print(script_dict)
 
 # Final output files
 rule all:
@@ -370,37 +425,37 @@ rule all:
         # Copy important output from scratch
         expand(
             "{results}/snake_outs/{sample}_moved_files.txt",
-            results = RESULTS, sample = SAMPLES
+            results = RESULTS, sample = new_samples
         ),
-        # souporcell
-        expand(
-            "{results}/snake_outs/{sample}_souporcell.txt",
-            results = RESULTS, sample = SAMPLES
-        ),
-        # expand(
-        #     "{results}/snake_outs/{group}_csv_aggr_done.txt",
-        #     results = RESULTS, group = AGGR_GROUP
-        #     ),
-        # expand(
-        #     "{results}/snake_outs/{group}_cellranger_aggr_done.txt",
-        #     results = RESULTS, group = AGGR_GROUP
-        #     ),
-        expand(
-            "{results}/run_scripts/{sample}_run.txt",
-            sample = script_name_dict.keys(), results = RESULTS
-            ),
-        expand(
-            "{results}/R_analysis/{sample}/files/scar_denoised.csv",
-            results = RESULTS, sample = SAMPLES
-        )
+#         # souporcell
+#         expand(
+#             "{results}/snake_outs/{sample}_souporcell.txt",
+#             results = RESULTS, sample = SAMPLES
+#         ),
 #         # expand(
-#         #     "{results}/logs/{sample}_velocyto_done.out",
-#         #     results = RESULTS, sample = SAMPLES
-#         # ),
+#         #     "{results}/snake_outs/{group}_csv_aggr_done.txt",
+#         #     results = RESULTS, group = AGGR_GROUP
+#         #     ),
 #         # expand(
-#         #     "{results}/logs/{group}_velocyto_combined.out",
-#         #     results = RESULTS, group = VELOCYTO_GROUP
-#         #     )
+#         #     "{results}/snake_outs/{group}_cellranger_aggr_done.txt",
+#         #     results = RESULTS, group = AGGR_GROUP
+#         #     ),
+#         expand(
+#             "{results}/run_scripts/{sample}_run.txt",
+#             sample = script_name_dict.keys(), results = RESULTS
+#             ),
+#         expand(
+#             "{results}/R_analysis/{sample}/files/scar_denoised.csv",
+#             results = RESULTS, sample = SAMPLES
+#         )
+# #         # expand(
+# #         #     "{results}/logs/{sample}_velocyto_done.out",
+# #         #     results = RESULTS, sample = SAMPLES
+# #         # ),
+# #         # expand(
+# #         #     "{results}/logs/{group}_velocyto_combined.out",
+# #         #     results = RESULTS, group = VELOCYTO_GROUP
+# #         #     )
 
 include: "src/rules/cellranger_multi.snake"
 include: "src/rules/run_rscripts.snake"
