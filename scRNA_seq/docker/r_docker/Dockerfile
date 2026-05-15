@@ -1,29 +1,14 @@
 # Get base image
-FROM bioconductor/bioconductor_docker:RELEASE_3_16
+FROM bioconductor/bioconductor_docker:RELEASE_3_21
 
 # environment
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
-ENV PATH $PATH:/opt/conda/bin
+ENV RENV_VERSION=1.0.7
 
-# get conda installed
-RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh && \
-    /bin/bash ~/miniconda.sh -b -p /opt/conda && \
-    rm ~/miniconda.sh && \
-    /opt/conda/bin/conda clean --all -f -y && \
-    ln -s /opt/conda/etc/profile.d/conda.sh /etc/profile.d/conda.sh && \
-    echo ". /opt/conda/etc/profile.d/conda.sh" >> ~/.bashrc && \
-    apt-get update
+# Install R packages with renv
+RUN R -e "install.packages('renv', version = '${RENV_VERSION}')"
 
-COPY environment.yaml .
-RUN /opt/conda/bin/conda config --add channels defaults && \
-    /opt/conda/bin/conda config --add channels bioconda && \
-    /opt/conda/bin/conda config --add channels conda-forge && \
-    /opt/conda/bin/conda install -c conda-forge mamba && \
-    mamba env update -n base -f environment.yaml && \
-    conda clean -afy
-
-
-# Install R packages
 WORKDIR /home/rstudio
-COPY r-pkgs.R r-pkgs.R
-RUN R -e 'source("r-pkgs.R")'
+COPY R_dependencies.R R_dependencies.R
+COPY renv.lock renv.lock
+RUN R -e "renv::restore()"

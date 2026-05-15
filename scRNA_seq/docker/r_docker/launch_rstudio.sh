@@ -15,7 +15,7 @@ mkdir -p logs
 USER_R_LIB=/projects/${USER}/R/nakayama_pln/4.2
 
 # path to sif file on HPC
-SINGULARITY_IMAGE="r_docker.sif"
+SINGULARITY_IMAGE="scrna_seq_r_v5.sif"
 
 # Change home path so that rstudio saves files to projects instead
 export HOME=/projects/${USER}
