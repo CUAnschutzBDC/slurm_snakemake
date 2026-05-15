@@ -254,7 +254,7 @@ SAMPLE_INFO:
     "files/sample_info.tsv"
 
 RSCRIPT_CONTAINER:
-    "docker/r_docker/scrna_seq_r_v3.sif"
+    "docker/r_docker/scrna_seq_r_v5.sif"
 
 DROPKICK_CONTAINER:
     "docker/dropkick/dropkick.sif"

@@ -230,7 +230,7 @@ rule create_sample_csv:
         adt_dict   = SAMPLE_DICT_ADT,
         vdj_t_dict = SAMPLE_DICT_VDJ_T,
         vdj_b_dict = SAMPLE_DICT_VDJ_B,
-        sample_info = SAMPLE_INFO
+        parent_sample_dict = parent_sample_dict
     resources:
         slurm_extra=lambda wildcards: (
             f"--qos=normal "
@@ -288,24 +288,16 @@ rule create_sample_csv:
                     csv.write("{},{},{}\n".format(fastq, fq_dir, "VDJ-B"))
 
                 # TODO
-                # Open the sample info
-                sample_df = pd.read_table(SAMPLE_INFO).set_index("sample", drop = False)
-                # get the row corresponding to your sample
-                row = sample_df.loc[wildcards.sample]
+                parent_info = parent_sample_dict[wildcards.sample]
 
-                # extract the two values
-                on_chip_multiplex = row["on_chip_multiplex"]
-                on_chip_multiplex_file = row["on_chip_multiplex_file"]
+                if parent_info["on_chip_multiplex"]:
 
-                # If on_chip_multiplex is TRUE
-                if on_chip_multiplex:
-                    # Write [samples]
-                    # Write sample_id,ocm_barcode_ids
                     csv.write("[samples]\nsample_id,ocm_barcode_ids\n")
-                    # Open up the file found at on_chip_multiplex_file
-                    with open(on_chip_multiplex_file, "r") as multiplex_file:
+
+                    with open(parent_info["on_chip_multiplex_file"], "r") as multiplex_file:
+
                         next(multiplex_file)
-                        # Write each sample,barcode
+
                         for line in multiplex_file:
                             csv.write(line)
 

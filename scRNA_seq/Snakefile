@@ -151,54 +151,67 @@ def ensure_directory_exists(path: str) -> str:
 
 def build_sample_dict(sample_info_path):
     """
-    Build a dictionary mapping final sample IDs to parent sample names.
+    Build dictionaries containing sample-level and parent-sample-level
+    metadata from a sample information table.
 
-    For each row in the sample info table:
-    - If `on_chip_multiplex` is NA or missing, the sample maps to itself.
-    - Otherwise, the multiplex CSV specified in `on_chip_multiplex`
-      is opened and each `sample_id` in that file maps to the parent
-      sample name from the `sample` column.
+    Two dictionaries are returned:
+
+    1. sample_info_dict
+        Keyed by individual sample name. Contains:
+        - parent: parent/Cell Ranger sample name
+        - type: "single" or "multiplexed"
+
+    2. parent_sample_dict
+        Keyed by parent sample name. Contains:
+        - on_chip_multiplex: whether on-chip multiplexing was used
+        - on_chip_multiplex_file: path to multiplex barcode file
 
     Args:
         sample_info_path (str): Path to the sample information TSV file.
+
             The file must contain the columns:
             - sample
+            - parent_sample
             - on_chip_multiplex
+            - on_chip_multiplex_file
 
     Returns:
-        dict: Dictionary where:
-            - keys are final sample IDs
-            - values are parent sample names
+        tuple:
+            sample_info_dict (dict):
+                Dictionary keyed by sample name with values containing:
+                - parent
+                - type
+
+            parent_sample_dict (dict):
+                Dictionary keyed by parent sample name with values
+                containing:
+                - on_chip_multiplex
+                - on_chip_multiplex_file
     """
 
-    sample_dict = {}
 
     sample_info = pd.read_csv(sample_info_path, sep="\t")
 
-    for _, row in sample_info.iterrows():
+    sample_info_dict = {
+        row["sample"]: {
+            "parent": row["parent_sample"],
+            "type": (
+                "single"
+                if row["sample"] == row["parent_sample"]
+                else "multiplexed"
+            ),
+        }
+        for _, row in sample_info.iterrows()
+    }
 
-        sample = row["sample"]
-        multiplex = row["on_chip_multiplex"]
-        multiplex_file = row["on_chip_multiplex_file"]
-
-        if multiplex:
-            multiplex_df = pd.read_csv(multiplex_file)
-
-            for multiplex_sample in multiplex_df["sample_id"]:
-
-                sample_dict[multiplex_sample] = {
-                    "parent": sample,
-                    "type": "multiplexed",
-                }
-
-        else:
-            sample_dict[sample] = {
-                "parent": sample,
-                "type": "single",
-            }
-
-
-    return sample_dict
+    parent_sample_dict = {
+        row["parent_sample"]: {
+            "on_chip_multiplex": row["on_chip_multiplex"],
+            "on_chip_multiplex_file": row["on_chip_multiplex_file"],
+        }
+        for _, row in sample_info.drop_duplicates("parent_sample").iterrows()
+    }
+    return sample_info_dict, parent_sample_dict
 
 def build_general_scripts(scripts_run: dict) -> Tuple[dict, dict]:
     """
@@ -403,7 +416,7 @@ AGGR_GROUP = AGGR_GROUP or "none"
 VELOCYTO_GROUP = VELOCYTO_GROUP or "none"
 
 
-sample_info_dict = build_sample_dict(SAMPLE_INFO)
+sample_info_dict, parent_sample_dict = build_sample_dict(SAMPLE_INFO)
 
 #print(sample_info_dict)
 # Build script dicts
