@@ -5,9 +5,9 @@
 #SBATCH --time=1-00:00:00
 #SBATCH --mem=1gb
 #SBATCH --output=logs/snakemake_%J.out
-#SBATCH --partition=amilan
+#SBATCH --partition=acpu
 #SBATCH --mail-type=ALL
-#SBATCH --qos=normal
+#SBATCH --qos=cpu-normal
 #SBATCH --mail-user=kristen.wells-wrasman@cuanschutz.edu
 
 set -o nounset -o pipefail -o errexit -x

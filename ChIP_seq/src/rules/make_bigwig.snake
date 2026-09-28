@@ -7,7 +7,7 @@ rule make_bigwig:
 		"{results}/bigwig_{trim_method}_trim/{sample}_Aligned.bw"
 	resources:
 		slurm_extra=lambda wildcards: (
-			f"--qos=normal "
+			f"--qos=cpu-normal "
 			f"--output={wildcards.results}/logs/make_bigwig/make_bigwig_{wildcards.sample}_{wildcards.trim_method}_trim.out "
 			f"--error={wildcards.results}/logs/make_bigwig/make_bigwig_{wildcards.sample}__{wildcards.trim_method}_trim.err"
 		)
@@ -41,7 +41,7 @@ rule make_bigwig_strand:
 		8
 	resources:
 		slurm_extra=lambda wildcards: (
-			f"--qos=normal "
+			f"--qos=cpu-normal "
 			f"--output={wildcards.results}/logs/make_bigwig_strand/make_bigwig_{wildcards.sample}_{wildcards.trim_method}_trim.out "
 			f"--error={wildcards.results}/logs/make_bigwig_strand/make_bigwig_{wildcards.sample}__{wildcards.trim_method}_trim.err"
 		)

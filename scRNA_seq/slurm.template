@@ -30,7 +30,7 @@
 #SBATCH -o __MRO_STDOUT__
 #SBATCH -e __MRO_STDERR__
 #SBATCH --time=08:00:00
-#SBATCH --qos=normal
-#SBATCH --partition=amilan
+#SBATCH --qos=cpu-normal
+#SBATCH --partition=acpu
 
 __MRO_CMD__
