@@ -4,7 +4,7 @@ use-apptainer: True
 #apptainer-args: "\"--bind /scratch/alpine --bind /pl/active/AnschutzBDC\""
 
 default-resources:
-    slurm_partition: "amilan"
+    slurm_partition: "acpu"
     slurm_account:   "amc-general"
     runtime: 60
     mem: "4GB"

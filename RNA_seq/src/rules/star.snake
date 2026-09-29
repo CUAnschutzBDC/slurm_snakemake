@@ -52,9 +52,7 @@ rule align:
         temp_file     = os.path.join(RESULTS2, "star_{trim_method}_trim/{sample}_Aligned.out.bam"),
         temp_location = os.path.join(RESULTS2, "star_{trim_method}_trim/{sample}"),
         bam_output    = os.path.join(RESULTS2, "star_{trim_method}_trim/{sample}_Aligned.sortedByCoord.out.bam"),
-        bed           = BED,
-        log_file      = os.path.join(RESULTS2, "star_{trim_method}_trim/{sample}_Log.final.out"),
-        log_new_path  = "{results}/star_{trim_method}_trim/{sample}_Log.final.out"
+        bed = BED
     # message:
     #     "Aligning reads for {wildcards.sample}"
     singularity:
@@ -77,7 +75,6 @@ rule align:
         #samtools sort {params.temp_file} -T {params.temp_location} > {params.bam_output}
         samtools sort -@ 10 {params.temp_file} > {params.bam_output}
         rm {params.temp_file}
-        rsync -avz --progress {params.log_file} {params.log_new_path}
         touch {output.output}
         """
 
@@ -101,7 +98,7 @@ rule star_summary:
     params:
         input_files = expand(
             "{results}/star_{trim_method}_trim/{sample}_Log.final.out",
-            results = RESULTS, sample = SAMPLES,
+            results = RESULTS2, sample = SAMPLES,
             trim_method = TRIM_METHOD
         )
     message:
