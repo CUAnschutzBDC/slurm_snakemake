@@ -30,12 +30,6 @@ rule bbduk:
         fastqc_output = "{results}/fastqc_pre_trim/fastqc_{sample}_summary_untrimmed.txt"
     output:
         "{results}/bbduk_trim/{sample}.txt"
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/trimming/bbduk_{wildcards.sample}.out "
-            f"--error={wildcards.results}/logs/trimming/bbduk_{wildcards.sample}.err"
-        )
     params:
         ref       = ADAPTORS,
         opts      = CMD_PARAMS["bbduk"],
@@ -76,12 +70,6 @@ rule cutadapt:
         fastqc_output = "{results}/fastqc_pre_trim/fastqc_{sample}_summary_untrimmed.txt"
     output:
         "{results}/cutadapt_trim/{sample}.txt"
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/trimming/cutadapt_{wildcards.sample}.out "
-            f"--error={wildcards.results}/logs/trimming/cutadapt_{wildcards.sample}.err"
-        )
     params:
         settings  = CMD_PARAMS["cutadapt"],
         out_dir   = os.path.join(RESULTS2, "cutadapt_trim"),
@@ -121,12 +109,6 @@ rule no_trim:
         fastqc_output = "{results}/fastqc_pre_trim/fastqc_{sample}_summary_untrimmed.txt"
     output:
         "{results}/no_trim/{sample}.txt"
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/trimming/no_{wildcards.sample}.out "
-            f"--error={wildcards.results}/logs/trimming/no_{wildcards.sample}.err"
-        )
     run:
         with open(output[0], "w") as out:
             out.write("No trimming done on these samples\n")

@@ -70,13 +70,6 @@ rule create_input:
         _get_bam_input
     output:
         output = "{results}/rmats_{trim_method}_trim/{group}_input.txt"
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/rmats/rmats_input_{wildcards.trim_method}_{wildcards.group}_trim.out "
-            f"--error={wildcards.results}/logs/rmats/rmats_input_{wildcards.trim_method}_{wildcards.group}_trim.err "
-            f"--ntasks=1"
-        )
     params:
         group = _get_group
     threads:
@@ -93,12 +86,6 @@ rule run_rmats:
         _get_input
     output:
         output1 = "{results}/rmats_{trim_method}_trim/rmats_{group_compare}_done.txt"
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/rmats/rmats_run_{wildcards.trim_method}_{wildcards.group_compare}_trim.out "
-            f"--error={wildcards.results}/logs/rmats/rmats_run_{wildcards.trim_method}_{wildcards.group_compare}_trim.err "
-        )
     params:
         gtf      = GTF,
         out_dir  =  "{results}/rmats_{trim_method}_trim/{group_compare}",
@@ -134,12 +121,6 @@ rule combine_rmats:
     output:
         "{results}/rmats_{trim_method}_trim/{group_compare}/combined_JCEC.txt",
         "{results}/rmats_{trim_method}_trim/{group_compare}/combined_JC.txt"
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/rmats_combine/rmats_combine_{wildcards.trim_method}_{wildcards.group_compare}_trim.out "
-            f"--error={wildcards.results}/logs/rmats_combine/rmats_combine_{wildcards.trim_method}_{wildcards.group_compare}_trim.err"
-        )
     params:
         in_dir  =  "{results}/rmats_{trim_method}_trim/{group_compare}"
     singularity:

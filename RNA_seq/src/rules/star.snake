@@ -37,12 +37,6 @@ rule align:
     output:
         output = "{results}/star_{trim_method}_trim/{sample}_finished.txt",
         strand = "{results}/infer_experiment_{trim_method}_trim/{sample}_experiment.txt"
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/star/star_{wildcards.sample}_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/star/star_{wildcards.sample}_{wildcards.trim_method}_trim.err"
-        )
     params:
         genome        = GENOME,
         gtf           = GTF,
@@ -89,12 +83,6 @@ rule star_summary:
         )
     output:
         "{results}/star_summary_{trim_method}_trim.tsv"
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/star/star_summary_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/star/star_summary_{wildcards.trim_method}_trim.err"
-        )
     params:
         input_files = expand(
             "{results}/star_{trim_method}_trim/{sample}_Log.final.out",
