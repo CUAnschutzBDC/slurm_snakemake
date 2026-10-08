@@ -3,8 +3,10 @@
 interaction <- "{{interaction}}"
 sect_title <- "{{name}}"
 if(interaction){
-  de_test <- contrasts[[sect_title]][[1]]
-  comparison <- contrasts[[sect_title]][[2]]
+  de_test <- contrasts[[sect_title]]$contrast
+  comparison <- contrasts[[sect_title]]$comparison
+  sample_column <- contrasts[[sect_title]]$sample_column
+  colors <- contrasts[[sect_title]]$color
 
   comparison <- unlist(strsplit(comparison, split = ":"))
   control <- comparison[2]
@@ -14,6 +16,8 @@ if(interaction){
   treatment <- contrasts[[sect_title]][1]
 
 }
+
+go_plots <- FALSE
 ```
 
 ## **`r sect_title`**
@@ -71,39 +75,48 @@ plotMA(sig_genes$DE_df, main = sect_title)
 ### Heatmaps
 Heatmap of DE genes across all samples
 ```{r heatmaps-{{name}}, fig.width = 6, fig.height = 4}
-heatmap_dir <- file.path(output_directory, "images", "heatmaps")
-heatmap <- make_heatmap(dds = dds,
-                        vsd = vsd,
-                        de_genes = sig_genes$DE_genes,
-                        treatment = treatment,
-                        control = control,
-                        group = params$sample_column,
-                        print_genenames = FALSE,
-                        cluster_cols = FALSE,
-                        save_heatmap = TRUE,
-                        output_dir = heatmap_dir,
-                        color_test = genotype_colors,
-                        save_name = sect_title)
-print(heatmap)
+if(nrow(sig_genes$DE_genes) > 1){
+  heatmap_dir <- file.path(output_directory, "images", "heatmaps")
+  heatmap <- make_heatmap(dds = dds,
+                          vsd = vsd,
+                          de_genes = sig_genes$DE_genes,
+                          treatment = treatment,
+                          control = control,
+                          group = sample_column,
+                          print_genenames = FALSE,
+                          cluster_cols = FALSE,
+                          save_heatmap = TRUE,
+                          output_dir = heatmap_dir,
+                          color_test = colors,
+                          save_name = sect_title)
+  print(heatmap)
+}
+
 
 ```
 
 Heatmap of DE genes across only the samples used in the comparison
 
 ```{r heatmaps2-{{name}}, fig.width = 6, fig.height = 4}
-heatmap_dir <- file.path(output_directory, "images", "heatmaps")
-heatmap <- make_heatmap(dds = dds,
-                        vsd = vsd,
-                        de_genes = sig_genes$DE_genes,
-                        treatment = treatment,
-                        control = control,
-                        group = params$sample_column,
-                        print_genenames = FALSE,
-                        cluster_cols = FALSE,
-                        save_heatmap = FALSE,
-                        plot_groups = c(treatment, control),
-                        color_test = genotype_colors)
-print(heatmap)
+if(nrow(sig_genes$DE_genes) > 1){
+
+  heatmap_dir <- file.path(output_directory, "images", "heatmaps")
+  
+  sub_colors <- colors[c(treatment, control)]
+                     
+  heatmap <- make_heatmap(dds = dds,
+                          vsd = vsd,
+                          de_genes = sig_genes$DE_genes,
+                          treatment = treatment,
+                          control = control,
+                          group = sample_column,
+                          print_genenames = FALSE,
+                          cluster_cols = FALSE,
+                          save_heatmap = FALSE,
+                          plot_groups = c(treatment, control),
+                          color_test = sub_colors)
+  print(heatmap)
+}
 
 ```
 
@@ -111,88 +124,92 @@ print(heatmap)
 
 For Gene Set Enrichment, I used `gprofiler2` It uses a hypergeometric test to determine overrepresentation of genes from different categories.
 
-```{r gse-{{name}}, eval = TRUE}
-all_gene_ens <- sub(".*_ENSMUSG", "ENSMUSG", rownames(dds))
+```{r gse-{{name}}, eval = go_plots}
+if(nrow(sig_genes$DE_genes) > 1 & run_GO){
 
-evcode <- TRUE
+  all_gene_ens <- sub(".*_ENSMUSG", "ENSMUSG", rownames(dds))
 
-result <- run_gprofiler_all(gene_table = sig_genes$DE_genes,
-                            pos_name = treatment,
-                            neg_name = control,
-                            custom_bg = all_gene_ens,
-                            save_dir = file.path(output_directory, "GSE_files"),
-                            plot_dir = file.path(output_directory, "images",
-                                                 "GSE"),
-                            save_name = sect_title,
-                            evcodes = evcode)
+  evcode <- TRUE
 
-plots <- result$plots
-gost_table <- result[[paste0(treatment, "_vs_", control)]]$result
+  result <- run_gprofiler_all(gene_table = sig_genes$DE_genes,
+                              pos_name = treatment,
+                              neg_name = control,
+                              custom_bg = all_gene_ens,
+                              save_dir = file.path(output_directory, "GSE_files"),
+                              plot_dir = file.path(output_directory, "images",
+                                                   "GSE"),
+                              save_name = sect_title,
+                              evcodes = evcode)
 
-save_gost <- c("GO:BP", "GO:CC", "GO:MF", "KEGG")
+  plots <- result$plots
+  gost_table <- result[[paste0(treatment, "_vs_", control)]]$result
 
-gost_file <- openxlsx::createWorkbook()
+  save_gost <- c("GO:BP", "GO:CC", "GO:MF", "KEGG")
 
-ens_mapping <- sub("_ENSMUSG.*", "", rownames(dds))
-names(ens_mapping) <- sub(".*_ENSMUSG", "ENSMUSG", rownames(dds))
+  gost_file <- openxlsx::createWorkbook()
 
-invisible(lapply(save_gost, function(x){
-  save_table <- gost_table %>%
-    dplyr::filter(source == x)
+  ens_mapping <- sub("_ENSMUSG.*", "", rownames(dds))
+  names(ens_mapping) <- sub(".*_ENSMUSG", "ENSMUSG", rownames(dds))
+  
+  invisible(lapply(save_gost, function(x){
+    save_table <- gost_table %>%
+      dplyr::filter(source == x)
     
-  if(evcode){
-    save_table <- save_table %>%
-      dplyr::select(!c(evidence_codes))
+    if(evcode){
+      save_table <- save_table %>%
+        dplyr::select(!c(evidence_codes))
     
-    all_intersections <- save_table$intersection
+      all_intersections <- save_table$intersection
     
-    gene_intersections <- lapply(all_intersections, function(intersection){
-      intersection <- stringr::str_split(intersection, pattern = ",")[[1]]
-      gene_intersection <- ens_mapping[intersection]
-      gene_intersection <- stringr::str_c(gene_intersection, collapse = ",")
-      return(gene_intersection)
-    })
+      gene_intersections <- lapply(all_intersections, function(intersection){
+        intersection <- stringr::str_split(intersection, pattern = ",")[[1]]
+        gene_intersection <- ens_mapping[intersection]
+        gene_intersection <- stringr::str_c(gene_intersection, collapse = ",")
+        return(gene_intersection)
+      })
 
     
-    save_table$intersection <- gene_intersections
-  }
-  sheetname <- sub(":", "_", x)
-  openxlsx::addWorksheet(wb = gost_file, sheetName = sheetname)
-  openxlsx::writeData(wb = gost_file, sheet = sheetname, x = save_table)
-}))
+      save_table$intersection <- gene_intersections
+    }
+    sheetname <- sub(":", "_", x)
+    openxlsx::addWorksheet(wb = gost_file, sheetName = sheetname)
+    openxlsx::writeData(wb = gost_file, sheet = sheetname, x = save_table)
+  }))
 
-openxlsx::saveWorkbook(wb = gost_file,
-                       file = file.path(output_directory, "GSE_files", 
-                                     paste0(sect_title, "_GSE.xlsx")),
-                       overwrite = TRUE)
+  openxlsx::saveWorkbook(wb = gost_file,
+                         file = file.path(output_directory, "GSE_files", 
+                                       paste0(sect_title, "_GSE.xlsx")),
+                         overwrite = TRUE)
 
-
+} else {
+  plots <- NULL
+}
 ```
 
 #### GO Biological function
 
-```{r, fig.height=6, fig.width=8}
+```{r, fig.height=6, fig.width=8, eval = go_plots}
 
 print(plots$GOBP)
 ```
 
 #### GO Molecular function
 
-```{r, fig.height=6, fig.width=8}
+```{r, fig.height=6, fig.width=8, eval = go_plots}
 
 print(plots$GOMF)
 ```
 
 #### GO Cellular Compartment
 
-```{r, fig.height=6, fig.width=8}
+```{r, fig.height=6, fig.width=8, eval = go_plots}
 
 print(plots$GOCC)
 ```
 
 #### KEGG
 
-```{r, fig.height=6, fig.width=8}
+```{r, fig.height=6, fig.width=8, eval = go_plots}
 
 print(plots$KEGG)
 ```
@@ -202,133 +219,137 @@ print(plots$KEGG)
 
 For Gene Set Enrichment, I used `gprofiler2` It uses a hypergeometric test to determine overrepresentation of genes from different categories.
 
-```{r gse-split-{{name}}, eval = TRUE, include = F}
-all_gene_ens <- sub(".*_ENSMUSG", "ENSMUSG", rownames(dds))
+```{r gse-split-{{name}}, , eval = go_plots, include = F}
+if(nrow(sig_genes$DE_genes) > 1 & run_GO){
 
-ifelse(!dir.exists(file.path(output_directory, "GSE_files_separated")),
-       dir.create(file.path(output_directory, "GSE_files_separated")),
-       FALSE)
+  all_gene_ens <- sub(".*_ENSMUSG", "ENSMUSG", rownames(dds))
 
-result <- run_gprofiler(gene_table = sig_genes$DE_genes,
-                        pos_name = treatment,
-                        neg_name = control,
-                        custom_bg = all_gene_ens,
-                        save_dir = file.path(output_directory,
-                                             "GSE_files_separated"),
-                        plot_dir = file.path(output_directory, "images",
-                                             "GSE"),
-                        evcodes = TRUE)
+  ifelse(!dir.exists(file.path(output_directory, "GSE_files_separated")),
+         dir.create(file.path(output_directory, "GSE_files_separated")),
+         FALSE)
 
-plots <- result$plots
-gost_table_trt <- result[[treatment]]$result
-gost_table_ctl <- result[[control]]$result
+  result <- run_gprofiler(gene_table = sig_genes$DE_genes,
+                          pos_name = treatment,
+                          neg_name = control,
+                          custom_bg = all_gene_ens,
+                          save_dir = file.path(output_directory,
+                                               "GSE_files_separated"),
+                          plot_dir = file.path(output_directory, "images",
+                                               "GSE"),
+                          evcodes = TRUE)
+
+  plots <- result$plots
+  gost_table_trt <- result[[treatment]]$result
+  gost_table_ctl <- result[[control]]$result
 
 
-save_gost <- c("GO:BP", "GO:CC", "GO:MF", "KEGG", "WP")
+  save_gost <- c("GO:BP", "GO:CC", "GO:MF", "KEGG", "WP")
 
-gost_file_trt <- openxlsx::createWorkbook()
+  gost_file_trt <- openxlsx::createWorkbook()
 
-gost_file_ctl <- openxlsx::createWorkbook()
+  gost_file_ctl <- openxlsx::createWorkbook()
 
-add_gost_data <- function(gost_table, gost_file, source_test,
-                          evcode = FALSE){
-  save_table <- gost_table %>%
-    dplyr::filter(source == source_test)
+  add_gost_data <- function(gost_table, gost_file, source_test,
+                            evcode = FALSE){
+    save_table <- gost_table %>%
+      dplyr::filter(source == source_test)
   
-  if(evcode){
-    save_table <- save_table %>%
-          dplyr::select(!c(evidence_codes))
+    if(evcode){
+      save_table <- save_table %>%
+            dplyr::select(!c(evidence_codes))
     
-        all_intersections <- save_table$intersection
+          all_intersections <- save_table$intersection
     
-    gene_intersections <- lapply(all_intersections, function(intersection){
-      intersection <- stringr::str_split(intersection, pattern = ",")[[1]]
-      gene_intersection <- ens_mapping[intersection]
-      gene_intersection <- stringr::str_c(gene_intersection, collapse = ",")
-      return(gene_intersection)
-    })
+      gene_intersections <- lapply(all_intersections, function(intersection){
+        intersection <- stringr::str_split(intersection, pattern = ",")[[1]]
+        gene_intersection <- ens_mapping[intersection]
+        gene_intersection <- stringr::str_c(gene_intersection, collapse = ",")
+        return(gene_intersection)
+      })
 
     
-    save_table$intersection <- gene_intersections
+      save_table$intersection <- gene_intersections
+    }
+
+    sheetname <- sub(":", "_", source_test)
+    openxlsx::addWorksheet(wb = gost_file, sheetName = sheetname)
+    openxlsx::writeData(wb = gost_file, sheet = sheetname, x = save_table)
   }
 
-  sheetname <- sub(":", "_", source_test)
-  openxlsx::addWorksheet(wb = gost_file, sheetName = sheetname)
-  openxlsx::writeData(wb = gost_file, sheet = sheetname, x = save_table)
+  invisible(lapply(save_gost, function(x){
+    add_gost_data(gost_table_trt, gost_file_trt, x, evcode = TRUE)
+    add_gost_data(gost_table_ctl, gost_file_ctl, x, evcode = TRUE)
+  }))
+
+  openxlsx::saveWorkbook(wb = gost_file_trt,
+                         file = file.path(output_directory, "GSE_files_separated", 
+                                       paste0(sect_title, "_", treatment, 
+                                       "_upregulated_genes_GSE.xlsx")),
+                         overwrite = TRUE)
+
+  openxlsx::saveWorkbook(wb = gost_file_ctl,
+                         file = file.path(output_directory, "GSE_files_separated", 
+                                       paste0(sect_title, "_", control, 
+                                       "_upregulated_genes_GSE.xlsx")),
+                         overwrite = TRUE)
+
+} else {
+  plots <- NULL
 }
-
-invisible(lapply(save_gost, function(x){
-  add_gost_data(gost_table_trt, gost_file_trt, x, evcode = TRUE)
-  add_gost_data(gost_table_ctl, gost_file_ctl, x, evcode = TRUE)
-}))
-
-openxlsx::saveWorkbook(wb = gost_file_trt,
-                       file = file.path(output_directory, "GSE_files_separated", 
-                                     paste0(sect_title, "_", treatment, 
-                                     "_upregulated_genes_GSE.xlsx")),
-                       overwrite = TRUE)
-
-openxlsx::saveWorkbook(wb = gost_file_ctl,
-                       file = file.path(output_directory, "GSE_files_separated", 
-                                     paste0(sect_title, "_", control, 
-                                     "_upregulated_genes_GSE.xlsx")),
-                       overwrite = TRUE)
-
-
 ```
 
 #### GO Biological function (upregulated in red cells)
 
-```{r, fig.height=6, fig.width=8}
+```{r, fig.height=6, fig.width=8, eval = go_plots}
 
 print(plots$C_GOBP)
 ```
 
 #### GO Molecular function (upregulated in red cells)
 
-```{r, fig.height=6, fig.width=8}
+```{r, fig.height=6, fig.width=8, eval = go_plots}
 
 print(plots$C_GOMF)
 ```
 
 #### GO Cellular Compartment (upregulated in red cells)
 
-```{r, fig.height=6, fig.width=8}
+```{r, fig.height=6, fig.width=8, eval = go_plots}
 
 print(plots$C_GOCC)
 ```
 
 #### KEGG (upregulated in red cells)
 
-```{r, fig.height=6, fig.width=8}
+```{r, fig.height=6, fig.width=8, eval = go_plots}
 
 print(plots$C_KEGG)
 ```
 
 #### GO Biological function (upregulated in green cells)
 
-```{r, fig.height=6, fig.width=8}
+```{r, fig.height=6, fig.width=8, eval = go_plots}
 
 print(plots$T_GOBP)
 ```
 
 #### GO Molecular function (upregulated in green cells)
 
-```{r, fig.height=6, fig.width=8}
+```{r, fig.height=6, fig.width=8, eval = go_plots}
 
 print(plots$T_GOMF)
 ```
 
 #### GO Cellular Compartment (upregulated in green cells)
 
-```{r, fig.height=6, fig.width=8}
+```{r, fig.height=6, fig.width=8, eval = go_plots}
 
 print(plots$T_GOCC)
 ```
 
 #### KEGG (upregulated in green cells)
 
-```{r, fig.height=6, fig.width=8}
+```{r, fig.height=6, fig.width=8, eval = go_plots}
 
 print(plots$T_KEGG)
 ```

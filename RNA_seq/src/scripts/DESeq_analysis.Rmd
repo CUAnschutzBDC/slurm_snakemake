@@ -1,5 +1,6 @@
 ---
-title: "klf4 and etv1 KO"
+title: "Fos negative vs Fos positive cells
+"
 author: "Kristen Wells"
 date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output:
@@ -15,46 +16,65 @@ params:
   genome: "GRCm38"
   DE_alpha: 0.05
   DE_lfc: 1
-  counts: "results/etv1_klf4_KDs_countTable_cutadapt_trim.txt"
+  counts: "results/human_cytokine_countTable_cutadapt_trim.txt"
   fastqc_one: "results/fastqc_pre_trim_summary_untrimmed.tsv"
   fastqc_two: "results/fastqc_cutadapt_summary_trimmed.tsv"
   star_stats: "results/star_summary_cutadapt_trim.tsv"
-  output_dir: "results/R_analysis_check"
+  output_dir: "results/R_analysis"
   sample_info: "files/sample_info.csv"
-  sample_column: "genotype"
-  comparisons:
-    value: 
-      - ["scramble", "etv1_kd"]
-      - ["scramble", "klf4_kd"]
-  genes:
-    value:
-      - "Etv1"
-      - "Klf4"
-      - "Arx"
-      - "Nkx6-1"
-      - "Nkx2-2"
+  sample_column: "group"
+  fastq_screen: "results/fastq_screen/fastq_screen_info.csv"
+  snakemake: FALSE
+  genes: 
+    - "Ins1"
+    - "Ins2"
+    - "Mafa"
+    - "Nkx6-1"
+    - "Nkx2-2"
+    - "Pdx1"
+    - "Neurod1"
+    - "Unc3"
+    - "Slc2a2"
+    - "Gck"
+    - "Iapp"
+    - "Ndufs1"
+    - "Ndufa9"
+    - "Sdha"
+    - "Sdhb"
+    - "Uqcrc1"
+    - "Uqcrq"
+    - "Cox4i1"
+    - "Atp5f1a"
+    - "Hk1"
+    - "Hk2"
+    - "Pcx"
+    - "Mdh1"
+    - "Mdh2"
+    - "Slc30a8"
+    - "Abcc8"
+    - "Glp1r"
+    - "Gcgr"
+    - "Rfx6"
+    - "Pax4"
+    - "Pax6"
+    - "Isl1"
 ---
+
 
 ```{r "Load packages and set options", include = F}
 library(knitr)
 library(cowplot)
 library(tidyverse)
 library(Matrix)
-library(pheatmap)
-library(ggrepel)
-library(gprofiler2)
 library(viridis)
 library(RColorBrewer)
-library(ashr)
-library(apeglm)
 library(openxlsx)
 library(DESeq2)
-library(pathview)
-library(KEGGREST)
-library(org.Mm.eg.db)
 library(LaCroixColoR)
 library(here)
 library(MetBrewer)
+library(pheatmap)
+library(gprofiler2)
 
 # Set default chunk options
 opts_chunk$set(
@@ -82,34 +102,85 @@ fastqc_colors <- c("#e31a1c", "#238443", "#ec7014")
 
 star_colors <- c("#737373", "#8c6bb1", "#ec7014",
                  "#e31a1c", "#238443", "#225ea8")
+
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 ```
 
+```{r load-data}
+run_GO <- TRUE
+if(params$snakemake){
+ # Read in out dir
+  output_directory <- params$output_dir
+  
+  # Read in count table
+  count_table <- read.table(params$counts, sep = "\t",
+                            row.names = 1, header = T)
+  
+  # Read in the sample table
+  sample_table <- read.table(params$sample_info, sep = ",",
+                             header = T)
+  
+  # Read in star stats
+  star_stats <- read.table(params$star_stats, sep = "\t", row.names = 1,
+                           header = T)
+  
+  # Load in fastqc results
+  fastqc_summary_one <- read.table(params$fastqc_one, sep = "\t")
+  
+  # Load in fastqc results
+  fastqc_summary_two <- read.table(params$fastqc_two, sep = "\t")
+
+  fastq_screen_res <- read.csv(params$fastq_screen)
+
+  
+
+} else {
+  # Read in out dir
+  output_directory <- here(params$output_dir)
+  
+  # Read in count table
+  count_table <- read.table(here(params$counts), sep = "\t",
+                            row.names = 1, header = T)
+  
+  # Read in the sample table
+  sample_table <- read.table(here(params$sample_info), sep = ",",
+                             header = T)
+  
+  # Read in star stats
+  star_stats <- read.table(here(params$star_stats), sep = "\t", row.names = 1,
+                           header = T)
+  
+  # Load in fastqc results
+  fastqc_summary_one <- read.table(here(params$fastqc_one), sep = "\t")
+  
+  # Load in fastqc results
+  fastqc_summary_two <- read.table(here(params$fastqc_two), sep = "\t")
+
+  fastq_screen_res <- read.csv(here(params$fastq_screen))
+
+}
+```
 
 ## Background
-This document goes through the analysis of the Chd4 KO at week 3 vs the control
+This document goes through the analysis of the Fos negative vs Fos positive cells
+
 
 ```{r, "Load in and set up data"}
-# Setup output dir
-output_directory <- here(params$output_dir)
-
-# Load in the files
-###############
-# Count table #
-###############
-# Read in the count table
-count_table <- read.table(here(params$counts), sep = "\t",
-                          row.names = 1, header = T)
+# Fix up files
 
 ################
 # Sample table #
 ################
 
-# Read in the sample table
-sample_table <- read.table(here(params$sample_info), sep = ",",
-                           header = T)
+rownames(sample_table) <- sample_table$Sample_name
+rownames(sample_table) <- make.names(rownames(sample_table))
 
-rownames(sample_table) <- sample_table$sample_name
-sample_table$group <- gsub("_[0-9]", "", sample_table$sample_name)
+# Remove any samples that weren't in the count table
+sample_table <- sample_table[(rownames(sample_table) %in%
+                                 colnames(count_table)),]
+
+# Remove failed sample
+
 
 # Ensure the count table and sample table are in the same order
 count_table <- count_table[ , rownames(sample_table)]
@@ -117,10 +188,6 @@ count_table <- count_table[ , rownames(sample_table)]
 ########
 # Star #
 ########
-
-# Read in star stats
-star_stats <- read.table(here(params$star_stats), sep = "\t", row.names = 1,
-                         header = T)
 
 # Filter for mapping % and total read counts
 star_stats <- star_stats[grepl(
@@ -172,50 +239,53 @@ read_counts <- star_stats_long %>%
 # FastQC #
 ##########
 
-# Load in fastqc results
-fastqc_summary_one <- read.table(here(params$fastqc_one), sep = "\t")
-
 # Change the colnames
 colnames(fastqc_summary_one) <- c("Result", "Test", "Sample")
 
 # Update sample names
-fastqc_summary_one$Sample <- sub("_S[0-9]*_L[0-9]*_", "",
+fastqc_summary_one$Sample <- sub("_S[0-9]*_", "",
                                  fastqc_summary_one$Sample)
 fastqc_summary_one$Sample <- sub("_001.fastq.gz", "",
                                  fastqc_summary_one$Sample)
-
-# Load in fastqc results
-fastqc_summary_two <- read.table(here(params$fastqc_two), sep = "\t")
 
 # Change the colnames
 colnames(fastqc_summary_two) <- c("Result", "Test", "Sample")
 
 # Update sample names
-fastqc_summary_two$Sample <- sub("_S[0-9]*_L[0-9]*_", "",
+fastqc_summary_two$Sample <- sub("_trimmed.fastq.gz", "",
                                  fastqc_summary_two$Sample)
-fastqc_summary_two$Sample <- sub("_001.fastq.gz", "",
+fastqc_summary_two$Sample <- sub("_trimmed.fastq.gz", "",
                                  fastqc_summary_two$Sample)
+
 
 ##############
 # Set colors #
 ##############
-
-
-
-# Cassatt 1
-sample_colors <- met.brewer(name="Renoir", n=12, type="discrete") %>%
-  as.character()
+# Sample
+color_builder <- grDevices::colorRampPalette(colors = RColorBrewer::brewer.pal(n = 9, name = "Set1"))
+sample_colors <- color_builder(nrow(sample_table))
 
 names(sample_colors) <- rownames(sample_table)
+# Cassatt 1
+batch_colors <- met.brewer("Cassatt1",
+                               length(unique(sample_table$batch)),
+                               type="continuous") %>%
+  as.character()
+
+names(batch_colors) <- unique(sample_table$batch)
 
 # Egypt for mutant/control
-genotype_colors <- met.brewer(name = "Egypt", n = 3, type = "discrete") %>%
+sex_colors <- met.brewer("Egypt", 
+                           n = length(unique(sample_table$sex)),
+                           type = "continuous") %>%
   as.character()
-names(genotype_colors) <- c("etv1_kd", "scramble", "klf4_kd")
+names(sex_colors) <- unique(sample_table$sex)
 
 # Derain for batch 1
-day_colors <- met.brewer(name = "Derain", n = 2, type = "discrete")
-names(day_colors) <- unique(sample_table$day)
+genotype_colors <- met.brewer("Derain",
+                              n = length(unique(sample_table$genotype)),
+                              type = "continuous")
+names(genotype_colors) <- unique(sample_table$genotype)
 
 ```
 
@@ -225,7 +295,7 @@ names(day_colors) <- unique(sample_table$day)
 `FastQC` was used to assess the quality of each fastq file. A summary of the results is shown below. Overall, this is okay. I generally focus most on the per tile sequence quality, the per sequence quality scores, the per base sequence quality, sequence length distribution, and the adapter content. All of your sequencing quality look good. The adapter content fails, but I trimmed the adapters before aligning.
 
 There is also failures in the sequence duplication levels. I will check these out in the fastqc output, but this is pretty common with RNA-seq libraries.
-```{r "Create fastqc summary", fig.width = 8.5, fig.height = 3}
+```{r "Create fastqc summary", fig.width = 8.5, fig.height = 5}
 fastqc_plot <- ggplot(data = fastqc_summary_one,
                       mapping = aes(x = Sample,
                                     y = Test,
@@ -246,7 +316,7 @@ fastqc_plot
 
 ## FastQC after trimming Summary
 Here I've reapeated `Fastqc` after adapter trimming. You can ignore most of it, but I wanted to include this so that you could see that the adapters were successfully removed by my trimming with `cutadapt` (the bottom row).
-```{r "Create fastqc summary2", fig.width = 8.5, fig.height = 4}
+```{r "Create fastqc summary2", fig.width = 8.5, fig.height = 5}
 fastqc_plot <- ggplot(data = fastqc_summary_two,
                       mapping = aes(x = Sample,
                                     y = Test,
@@ -270,7 +340,7 @@ Reads were aligned to the `r params$genome` genome using the `STAR` RNA-seq alig
 
 This alignment looks quite good to me. The percent mapping is pretty consistent between samples and is quite high.
 
-```{r "Create alignment summary", fig.width = 8.5, fig.height = 3}
+```{r "Create alignment summary", fig.width = 8.5, fig.height = 5}
 
 # Plot alignment stats
 star_stats_long_pct <- star_stats_long %>%
@@ -319,20 +389,52 @@ star_plot
 
 ```
 
+## Fastq screen
+I also ran the alignment against many different genomes to ensure any unmapped reads could be mapped to any type of contamination. I did this using `fastq_screen`
+
+```{r}
+
+# Make the plotting levels better?
+fastq_screen_res$Genome <- factor(fastq_screen_res$Genome,
+                                  levels = unique(fastq_screen_res$Genome))
+
+# Pick some colors
+colors <- grDevices::colorRampPalette(
+  RColorBrewer::brewer.pal(name = "Set1", n = 9))(length(levels(fastq_screen_res$Genome)))
+
+names(colors) <- levels(fastq_screen_res$Genome)
+
+# Make a barplot
+barplot <- ggplot2::ggplot(fastq_screen_res, ggplot2::aes(x = sample,
+                                                          y = percent, 
+                                                          fill = Genome)) +
+	ggplot2::geom_bar(stat = "identity", position = "stack") +
+	ggplot2::coord_flip() +
+	ggplot2::scale_fill_manual(values = colors)
+
+print(barplot)
+
+```
+
 
 ## PCA
 Principal component analysis was performed to assess similarities between samples. Here I've made many plots to look at different technical effects in your data. 
 
 A) PCA colored by sample
 B) PCA colored by genotype
-C) PCA colored by day
+C) PCA colored by group
+D) PCA colored by sex
 
 ```{r "Run DESeq2 and create PCA plot", fig.width = 10, fig.height = 8}
 # This makes a DESeq2 object where the count data is our count matrix and the colData is our sample data. I am currently making the design based on "group" but we can change this if necessary
-sample_table$sample_name <- factor(sample_table$sample_name)
-sample_table$genotype <- factor(sample_table$genotype,
-                                levels = c("etv1_kd", "klf4_kd", "scramble"))
-sample_table$day <- factor(sample_table$day)
+
+sample_table$Sample_name <- factor(sample_table$Sample_name)
+sample_table$genotype <- factor(sample_table$genotype)
+sample_table$batch <- factor(sample_table$batch)
+sample_table$sex <- factor(sample_table$sex)
+sample_table$batch2 <- factor(sample_table$batch2)
+sample_table$sex_genotype <- factor(paste(sample_table$sex, 
+                                          sample_table$genotype, sep = "_"))
 
 dds <- DESeqDataSetFromMatrix(countData = count_table,
                               colData = sample_table,
@@ -346,13 +448,14 @@ dds <- DESeq(dds)
 # This transforms the counts to have constant variance. This helps ensue that highly or lowly expressed genes will not contribute too much for the PCA or clustering analysis
 vsd <- vst(dds, blind = F)
 
-pc_1 <- plot_pca(vsd, group_by = "sample_name", color_palette = sample_colors)
+pc_1 <- plot_pca(vsd, group_by = "Sample_name", color_palette = sample_colors)
 pc_2 <- plot_pca(vsd, group_by = "genotype", color_palette = genotype_colors)
-pc_3 <- plot_pca(vsd, group_by = "day", color_palette = day_colors)
+pc_3 <- plot_pca(vsd, group_by = "batch", color_palette = batch_colors)
+pc_4 <- plot_pca(vsd, group_by = "sex", color_palette = sex_colors)
 
 
-plot_grid(pc_1, pc_2, pc_3,
-          labels = c("A", "B", "C"),
+plot_grid(pc_1, pc_2, pc_3, pc_4,
+          labels = c("A", "B", "C", "D"),
           nrow = 2, ncol = 2,
           align = "hv",
           axis = "r",
@@ -360,16 +463,22 @@ plot_grid(pc_1, pc_2, pc_3,
           label_x = 1)
 ```
 
-## PCA (batch corrected)
+## PCA batch corrected
+Principal component analysis was performed to assess similarities between samples. Here I've made many plots to look at different technical effects in your data. 
+
 A) PCA colored by sample
 B) PCA colored by genotype
-C) PCA colored by day
+C) PCA colored by group
+D) PCA colored by sex
 
-```{r "Run DESeq2 and create PCA plot batch", fig.width = 10, fig.height = 6}
+```{r "Run DESeq2 and create batch corrected PCA plot", fig.width = 10, fig.height = 8}
+# This makes a DESeq2 object where the count data is our count matrix and the colData is our sample data. I am currently making the design based on "group" but we can change this if necessary
 
-design(dds) <- formula(~day + genotype)
+
+design(dds) <- ~batch + genotype
 
 dds <- DESeq(dds)
+
 # This transforms the counts to have constant variance. This helps ensue that highly or lowly expressed genes will not contribute too much for the PCA or clustering analysis
 vsd <- vst(dds, blind = F)
 
@@ -377,25 +486,25 @@ vsd <- vst(dds, blind = F)
 mat <- assay(vsd)
 
 
-mat <- limma::removeBatchEffect(mat, vsd$day,
+mat <- limma::removeBatchEffect(mat, vsd$treatment,
                                 design = model.matrix(~vsd$genotype))
 
 assay(vsd) <- mat
 
-pc_1 <- plot_pca(vsd, group_by = "sample_name", color_palette = sample_colors)
+pc_1 <- plot_pca(vsd, group_by = "Sample_name", color_palette = sample_colors)
 pc_2 <- plot_pca(vsd, group_by = "genotype", color_palette = genotype_colors)
-pc_3 <- plot_pca(vsd, group_by = "day", color_palette = day_colors)
+pc_3 <- plot_pca(vsd, group_by = "batch", color_palette = batch_colors)
+pc_4 <- plot_pca(vsd, group_by = "sex", color_palette = sex_colors)
 
 
-plot_grid(pc_1, pc_2, pc_3,
-          labels = c("A", "B", "C"),
+plot_grid(pc_1, pc_2, pc_3, pc_4,
+          labels = c("A", "B", "C", "D"),
           nrow = 2, ncol = 2,
           align = "hv",
           axis = "r",
           label_y = 1,
           label_x = 1)
 ```
-
 
 
 # Differential Expression Analysis {.tabset}
@@ -404,7 +513,8 @@ plot_grid(pc_1, pc_2, pc_3,
 ```{r "Make directories", include = F}
 # Create the output folders if it doesn't already exist
 ifelse(!dir.exists(here(params$output_dir, "DE_files")),
-       dir.create(here(params$output_dir, "DE_files")), FALSE)
+       dir.create(here(params$output_dir, "DE_files"), recursive = TRUE), 
+       FALSE)
 
 ifelse(!dir.exists(here(params$output_dir, "images")),
        dir.create(here(params$output_dir, "images")), FALSE)
@@ -418,23 +528,26 @@ ifelse(!dir.exists(here(params$output_dir, "GSE_files")),
 ```
 
 ```{r "Run differential experession chunks", echo = F}
-# Create a model
-mod_mat <- model.matrix(design(dds), colData(dds))
+resultsNames(dds)
 
-etv <- colMeans(mod_mat[dds$genotype == "etv1_kd", ])
-klf <- colMeans(mod_mat[dds$genotype == "klf4_kd", ])
-scramble <- colMeans(mod_mat[dds$genotype == "scramble", ])
+dds$sex_genotype <- paste(dds$sex, dds$genotype, sep = "_")
 
+sex_genotpe_colors <- c(
+  Female_Fos_neg = "#F7DFA8",
+  Male_Fos_neg   = "#C49A3E",
+  Female_Fos_pos = "#858BB2",
+  Male_Fos_pos   = "#303553"
+)
+
+# Add a sample column and color set option so that the heatmaps can look better
 contrasts <- list(
-  "etv1_scramble" = list((etv - scramble),
-       "etv1_kd:scramble"),
-  "klf4_scramble" = list((klf - scramble),
-       "klf4_kd:scramble")
+  "neg_vs_pos" = list(
+    "contrast" = list("genotype_Fos_pos_vs_Fos_neg"),
+    "comparison" = "Fos_pos:Fos_neg",
+    "sample_column" = "genotype",
+    "color" = genotype_colors
+    )
   )
-
-
-# compare_contrast <- FALSE
-# compare_name <- FALSE
 
 DE_chunks <- names(contrasts) %>%
  map(~knit_expand(here("src/scripts/DESeq_template.Rmd"),
@@ -459,6 +572,9 @@ ifelse(!dir.exists(here(params$output_dir, "images", "gene_plots")),
 ```
 
 ```{r "Run gene experession chunks", echo = F}
+sample_column <- "sex_genotype"
+plot_colors <- sex_genotpe_colors
+
 normalized <- FALSE
 gene_chunks <- params$genes %>%
   map(~knit_expand(here("src/scripts/gene_plots_template.Rmd")))
@@ -493,7 +609,10 @@ sessionInfo()
 ```{r}
 ifelse(!dir.exists(here(params$output_dir, "objs")),
        dir.create(here(params$output_dir, "objs")), FALSE)
-saveRDS(dds, here(params$output_dir, "objs/dds_obj.rda"))
+saveRDS(dds, here(params$output_dir, "objs/combat_obj_obj.rda"))
 
 saveRDS(vsd, here(params$output_dir, "objs/vsd_obj.rda"))
+
+
+saveRDS(dds, here(params$output_dir, "objs/full_obj.rda"))
 ```

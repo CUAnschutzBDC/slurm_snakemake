@@ -7,7 +7,6 @@ gene <- "{{.x}}"
 # Create section title
 sect_title <- gene
 
-
 ```
 
 ## **`r sect_title`**
@@ -24,9 +23,9 @@ if(normalized){
 plot <- plot_genes(gene_id = gene,
                    gene_id_list = all_gene_ids,
                    deseq_obj = dds,
-                   intgroup = params$sample_column,
+                   intgroup = sample_column,
                    plot_ggplot = TRUE,
-                   color = genotype_colors,
+                   color = plot_colors,
                    return_data = FALSE,
                    print = TRUE,
                    save_path = save_path,
