@@ -55,12 +55,6 @@ rule align:
         bam_output = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_Aligned.out.bam"),
         bai_file   = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_Aligned.out.bam.bai"),
         out_dir    = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim")
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/bowtie2/bowtie2_{wildcards.sample}_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/bowtie2/bowtie2_{wildcards.sample}_{wildcards.trim_method}_trim.err"
-        )
     singularity:
        GENERAL_CONTAINER
     message:
@@ -119,12 +113,6 @@ rule aligment_stats:
             )
     output:
         "{results}/bowtie2_{trim_method}_trim/bowtie_stats_finished.txt"
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/bowtie2_stats/bowtie2_stats_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/bowtie2_stats/bowtie2_stats_{wildcards.trim_method}_trim.err"
-        ) 
     params:
         out_dir  = "{results}/bowtie2_{trim_method}_trim",
         in_dir   = "{results}/logs/bowtie2"
@@ -155,12 +143,6 @@ rule remove_mito:
     params:
         in_bam = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_Aligned.out.bam"),
         mt_bam = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_remove_mt.bam"),
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/remove_mito/remove_mito_{wildcards.sample}_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/remove_mito/remove_mito_{wildcards.sample}_{wildcards.trim_method}_trim.err"
-        )
     singularity:
        GENERAL_CONTAINER
     shell:
@@ -203,12 +185,6 @@ rule mark_duplicates:
         temp_file  = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_dup_temp.bam"),
         temp_dir   = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim"),
         dup_bam    = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_mark_dup.bam")
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/mark_duplicates/mark_duplicates_{wildcards.sample}_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/mark_duplicates/mark_duplicates_{wildcards.sample}_{wildcards.trim_method}_trim.err"
-        )
     singularity:
        PICARD_CONTAINER
     shell:
@@ -239,12 +215,6 @@ rule remove_duplicate_reads:
     params:
         mapq_threshold = 20,
         dup_bam        = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_mark_dup.bam")
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/remove_duplicate_reads/remove_duplicate_reads_{wildcards.sample}_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/remove_duplicate_reads/remove_duplicate_reads_{wildcards.sample}_{wildcards.trim_method}_trim.err"
-        )
     singularity:
        GENERAL_CONTAINER
     shell:
@@ -292,12 +262,6 @@ rule dup_stats:
         "{results}/bowtie2_{trim_method}_trim/dup_stats.txt"
     params:
         directory = "{results}/bowtie2_{trim_method}_trim"
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/dup_stats/dup_stats_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/dup_stats/dup_stats_{wildcards.trim_method}_trim.err"
-        )
     singularity:
        GENERAL_CONTAINER
     shell:

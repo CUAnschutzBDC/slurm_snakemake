@@ -29,12 +29,6 @@ rule find_downsample_val:
         samples  = SAMPLES
     singularity:
         R_CONTAINER
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/downsample_val/downsample_val_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/downsample_val/downsample_val_{wildcards.trim_method}_trim.err"
-        )
     shell:
         """
         Rscript --vanilla src/scripts/find_downsample_val.R {output} {input}
@@ -52,12 +46,6 @@ rule downsample_bams:
         input_bam = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_remove_mt.bam")
     singularity:
         GENERAL_CONTAINER
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/downsample/downsample_{wildcards.sample}_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/downsample/downsample_{wildcards.sample}_{wildcards.trim_method}_trim.err"
-        )
     shell:
         """
         samtools view {params.input_bam} \

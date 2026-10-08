@@ -5,12 +5,6 @@ rule make_bigwig:
 		"{results}/bowtie2_{trim_method}_trim/{sample}_remove_dup.bam"
 	output:
 		"{results}/bigwig_{trim_method}_trim/{sample}_Aligned.bw"
-	resources:
-		slurm_extra=lambda wildcards: (
-			f"--qos=cpu-normal "
-			f"--output={wildcards.results}/logs/make_bigwig/make_bigwig_{wildcards.sample}_{wildcards.trim_method}_trim.out "
-			f"--error={wildcards.results}/logs/make_bigwig/make_bigwig_{wildcards.sample}__{wildcards.trim_method}_trim.err"
-		)
 	threads:
 		8
 	singularity:
@@ -39,12 +33,6 @@ rule make_bigwig_strand:
 		GENERAL_CONTAINER
 	threads:
 		8
-	resources:
-		slurm_extra=lambda wildcards: (
-			f"--qos=cpu-normal "
-			f"--output={wildcards.results}/logs/make_bigwig_strand/make_bigwig_{wildcards.sample}_{wildcards.trim_method}_trim.out "
-			f"--error={wildcards.results}/logs/make_bigwig_strand/make_bigwig_{wildcards.sample}__{wildcards.trim_method}_trim.err"
-		)
 	shell:
 		"""
 		if {params.paired}

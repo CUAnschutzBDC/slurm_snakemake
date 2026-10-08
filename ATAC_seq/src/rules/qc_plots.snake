@@ -40,12 +40,6 @@ rule atac_qc:
         dup_file = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim/{sample}_remove_dup.bam")
     singularity:
        R_CONTAINER
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/atac_qc/atac_qc_{wildcards.sample}_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/atac_qc/atac_qc_{wildcards.sample}_{wildcards.trim_method}_trim.err"
-        )
     script:
         "../scripts/atac_qc.R"
 
@@ -66,12 +60,6 @@ rule diffbind:
         out_dir   = "{results}/{peak_caller}_diffbind_{trim_method}_trim"
     singularity:
        R_CONTAINER
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/diffbind/diffbind_{wildcards.peak_caller}_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/diffbind/diffbind_{wildcards.peak_caller}_{wildcards.trim_method}_trim.err"
-        )
     script:
         "../scripts/DiffBind.R"
 
@@ -88,11 +76,5 @@ rule combine_tss:
         memory    = "select[mem>4] rusage[mem=4]"
     singularity:
        R_CONTAINER
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/combine_tss/combine_tss_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/combine_tss/combine_tss_{wildcards.trim_method}_trim.err"
-        )
     script:
         "../scripts/merge_tss.R"

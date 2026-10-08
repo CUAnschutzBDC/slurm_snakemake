@@ -1,6 +1,8 @@
 # Analysis pipelines
 Writen by Kristen Wells and Chris Hill
 
+*Note this pipeline has been updated to work with the newest version of snakemake and the snakemake slurm executor v 2.8.0*
+
 A collection of snakemake pipelines to analyze omics datasets. Current pipelines include:
 
 * A scRNA-sequencing pipeline that analyzed 10x genomics datasets. Can be used with scRNA-seq, scCITE-seq, scVDJ-seq, and hashtagging (and any combination of those).

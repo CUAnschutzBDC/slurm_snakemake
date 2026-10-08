@@ -8,12 +8,6 @@ rule make_sample_sheet:
             )
     output:
         "{results}/quality_sample_sheet_{trim_method}.csv"
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/make_sample_sheet/make_sample_sheet_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/make_sample_sheet/make_sample_sheet_{wildcards.trim_method}_trim.err"
-        )
     run:
         with open(output[0], "w") as outfile:
             outfile.write("SampleID,Tissue,Factor,Condition,Replicate,bamReads,ControlID,bamControl,Peaks,PeakCaller\n")        

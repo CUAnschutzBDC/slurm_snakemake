@@ -51,13 +51,6 @@ rule merge_fastqs:
         adt_dict   = SAMPLE_DICT_ADT,
         vdj_t_dict = SAMPLE_DICT_VDJ_T,
         vdj_b_dict = SAMPLE_DICT_VDJ_B
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/merge_fastq/{wildcards.sample}_fastq.out "
-            f"--error={wildcards.results}/logs/merge_fastq/{wildcards.sample}_fastq.err"
-
-        )
     threads:
         1   
     run:
@@ -231,12 +224,6 @@ rule create_sample_csv:
         vdj_t_dict = SAMPLE_DICT_VDJ_T,
         vdj_b_dict = SAMPLE_DICT_VDJ_B,
         parent_sample_dict = parent_sample_dict
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/cellranger_csv/{wildcards.sample}_cellranger.out "
-            f"--error={wildcards.results}/logs/cellranger_csv/{wildcards.sample}_cellranger.err"
-        )
     threads:
         1   
     run:
@@ -355,12 +342,6 @@ rule cellranger_count:
         template   = CLUSTER_TEMPLATE,
         run_type   = _find_run_type,
         cellranger = CELLRANGER_PATH
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/cellranger/{wildcards.sample}_cellranger.out "
-            f"--error={wildcards.results}/logs/cellranger/{wildcards.sample}_cellranger.err"
-        )
     threads:
         10
     # singularity:
@@ -436,12 +417,6 @@ rule create_aggr_csv:
         vdj_t_dict = SAMPLE_DICT_VDJ_T,
         vdj_b_dict = SAMPLE_DICT_VDJ_B,
         scratch    = RESULTS2
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/aggr_csv/{wildcards.group}_aggr_csv.out "
-            f"--error={wildcards.results}/logs/aggr_csv/{wildcards.group}_aggr_csv.err"
-        )
     threads:
         1   
     run:
@@ -480,11 +455,6 @@ rule run_aggr:
         csv      = "{results}/{group}_aggr.csv",
         max_jobs = MAX_JOBS,
         results  = RESULTS
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--output={wildcards.results}/logs/aggr/{wildcards.group}_aggr.out "
-            f"--error={wildcards.results}/logs/aggr/{wildcards.group}_aggr.err"
-        )
     threads:
         1   
     run:
@@ -512,12 +482,6 @@ rule copy_files:
         scratch     = RESULTS2,
         experiment  = _find_experiment_type,
         main_sample = lambda wildcards: sample_info_dict[wildcards.sample]["parent"]
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/copy/{wildcards.sample}_copy.out "
-            f"--error={wildcards.results}/logs/copy/{wildcards.sample}_copy.err"
-        )
     threads:
         1   
     shell:

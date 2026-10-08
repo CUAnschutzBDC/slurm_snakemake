@@ -24,11 +24,7 @@ rule run_velocyto:
     output:
         "{results}/logs/{sample}_velocyto_done.txt"
     params:
-        job_name = "velocyto",
-        memory   = "select[mem>60] rusage[mem=60]",
         genome   = GENOME
-    log:
-        "{results}/logs/{sample}_velocyto"
     threads:
         1
     run:
@@ -50,12 +46,8 @@ rule combine_loom:
     output:
         "{results}/logs/{group}_velocyto_combined.txt"
     params:
-        job_name = "combine_loom",
-        memory = "select[mem>10] rusage[mem=10]",
         velocyto_input = _get_velo_input,
         out_file = "{results}/{group}_combined/velocyto/combined_{group}.loom"
-    log:
-        "{results}/logs/{group}_combine_loom"
     run:
         if wildcards.group != "none":
             import loompy

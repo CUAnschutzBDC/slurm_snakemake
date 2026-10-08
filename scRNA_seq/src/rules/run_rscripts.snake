@@ -128,12 +128,6 @@ rule run_rscript:
         sample_info     = SAMPLE_INFO
     singularity:
         config["RSCRIPT_CONTAINER"]
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/rscript/{wildcards.sample}.out "
-            f"--error={wildcards.results}/logs/rscript/{wildcards.sample}.err"
-        )
     threads:
         1   
     shell:
@@ -154,12 +148,6 @@ rule run_dropkick:
         "{results}/R_analysis/{sample}/files/dropkick_cells.csv"
     singularity:
         config["DROPKICK_CONTAINER"]
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/dropkick/{wildcards.sample}_dropkick.out "
-            f"--error={wildcards.results}/logs/dropkick/{wildcards.sample}_dropkick.err"
-        )
     threads:
         1  
     shell:
@@ -174,12 +162,6 @@ rule run_scar:
         "{results}/snake_outs/{sample}_moved_files.txt"
     output:
         "{results}/R_analysis/{sample}/files/scar_denoised.csv"
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=normal "
-            f"--output={wildcards.results}/logs/scar/{wildcards.sample}.out "
-            f"--error={wildcards.results}/logs/scar/{wildcards.sample}.err"
-        )
     singularity:
         config["SCAR_CONTAINER"]
     shell:

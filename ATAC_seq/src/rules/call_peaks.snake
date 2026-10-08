@@ -12,13 +12,9 @@ rule frip:
         count_file = "{results}/featureCounts_{trim_method}_trim/{sample}_counts.txt",
         summary    = "{results}/featureCounts_{trim_method}_trim/{sample}_counts.txt.summary"
     params:
-        job_name  = "{sample}_frip",
-        memory    = "select[mem>10] rusage[mem=10]",
         out_dir   = "{results}/featureCounts_{trim_method}_trim"
     singularity:
        GENERAL_CONTAINER
-    log:
-        "{results}/logs/featureCounts/featureCounts_{sample}_{trim_method}_trim"
     shell:
         """
         file_name={params.out_dir}/{wildcards.sample}.saf
@@ -41,11 +37,6 @@ rule combine_frip:
             results = RESULTS, trim_method = TRIM_METHOD, sample = SAMPLES)
     output:
         out_file = "{results}/featureCounts_{trim_method}_trim/combined_frip.tsv"
-    params:
-        job_name  = "frip",
-        memory    = "select[mem>10] rusage[mem=10]"
-    log:
-        "{results}/logs/combine_frip/combined_{trim_method}"
     run:
         count_dictionary = {}
         for file in input.all_files:
@@ -77,16 +68,12 @@ rule hmmratac:
         peaks   = "{results}/hmmratac_{trim_method}_trim/{sample}_peaks.gappedPeak",
         summits = "{results}/hmmratac_{trim_method}_trim/{sample}_summits.bed"
     params:
-        job_name   = "{sample}_hmmratac",
-        memory     = "select[mem>60] rusage[mem=60]",
         out_prefix = "{results}/hmmratac_{trim_method}_trim/{sample}",
         hmmratac   = HMMRATAC_FILE,
         chr_sizes  = CHR_SIZE,
         blacklist  = BLACKLIST
     singularity:
        GENERAL_CONTAINER
-    log:
-        "{results}/logs/hmmratac/hmmratac_{sample}_{trim_method}_trim"
     threads:
         6
     shell:

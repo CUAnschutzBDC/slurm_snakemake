@@ -1,13 +1,21 @@
+# ===== Environment =====
 executor: slurm
-
+use-conda: True
 use-apptainer: True
-#apptainer-args: "\"--bind /scratch/alpine --bind /pl/active/AnschutzBDC\""
+apptainer-args: "--bind /scratch/alpine --bind /pl/active/Anschutz_BDC"
+slurm-qos: "cpu-normal"
+slurm-logdir: "results/logs"
+slurm-keep-successful-logs: True
+
+# ===== Default resources =====
 
 default-resources:
-    slurm_partition: "amilan"
+    slurm_partition: "acpu"
     slurm_account:   "amc-general"
     runtime: 60
     mem: "4GB"
+
+# ===== Rule-specific resources =====
 
 set-resources:
     merge_fastqs:

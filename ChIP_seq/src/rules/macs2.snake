@@ -43,12 +43,6 @@ rule macs2:
         output_path = "{results}/macs2_{trim_method}_trim/{sample}",
         qvalue      = QVALUE,
         temp_dir    = os.path.join(RESULTS2, "bowtie2_{trim_method}_trim", "{sample}")
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/macs2/macs2_{wildcards.sample}_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/macs2/macs2_{wildcards.sample}__{wildcards.trim_method}_trim.err"
-        )
     singularity:
        GENERAL_CONTAINER    
     shell:
@@ -82,12 +76,6 @@ rule overlapping_peaks:
         job_name = "macs2_merge",
         memory   = "select[mem>30] rusage[mem=30]",
         command  = _build_command
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/overlapping_peaks/overlapping_peaks_{wildcards.sample}_{wildcards.trim_method}_trim.out "
-            f"--error={wildcards.results}/logs/overlapping_peaks/overlapping_peaks_{wildcards.sample}__{wildcards.trim_method}_trim.err"
-        )
     singularity:
        GENERAL_CONTAINER    
     shell:

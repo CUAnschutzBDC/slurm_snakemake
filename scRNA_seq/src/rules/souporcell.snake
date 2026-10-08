@@ -10,11 +10,6 @@ rule run_souporcell:
 		barcodes = "{results}/{sample}/outs/per_sample_outs/{sample}/count/sample_filtered_feature_bc_matrix/barcodes.tsv.gz",
 		outdir   = "{results}/{sample}/souporcell",
 		outdir_scratch = os.path.join(RESULTS2, "{sample}/souporcell")
-	resources:
-		slurm_extra=lambda wildcards: (
-			f"--output={wildcards.results}/logs/souporcell/{wildcards.sample}_souporcell.out "
-			f"--error={wildcards.results}/logs/souporcell/{wildcards.sample}_souporcell.err"
-		)
 	threads:
 		8
 	singularity:

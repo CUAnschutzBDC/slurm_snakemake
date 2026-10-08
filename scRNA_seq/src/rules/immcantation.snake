@@ -8,12 +8,6 @@ rule igblast_bcr:
 		fasta     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_b/filtered_contig.fasta",
 		annot     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_b/filtered_contig_annotations.csv",
 		outdir    = "{results}/{sample}/outs/immcantation/bcr"
-	resources:
-		slurm_extra=lambda wildcards: (
-			f"--qos=normal "
-			f"--output={wildcards.results}/logs/immcantation/{wildcards.sample}_fastq.out "
-			f"--error={wildcards.results}/logs/immcandataion/{wildcards.sample}_fastq.err"
-		)
 	singularity:
 		config["IMMCANTATION_CONTAINER"]
 	shell:
@@ -47,12 +41,6 @@ rule igblast_tcr:
 		fasta     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_t/filtered_contig.fasta",
 		annot     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_t/filtered_contig_annotations.csv",
 		outdir    = "{results}/{sample}/outs/immcantation/tcr"
-	resources:
-		slurm_extra=lambda wildcards: (
-			f"--qos=normal "
-			f"--output={wildcards.results}/logs/immcantation/{wildcards.sample}_tcr.out "
-			f"--error={wildcards.results}/logs/immcandataion/{wildcards.sample}_tcr.err"
-		)
 	singularity:
 		config["IMMCANTATION_CONTAINER"]
 	threads:
@@ -106,12 +94,6 @@ rule make_clone_input2:
 			)
 	output:
 		"{results}/R_analysis/merged/files/immcantation_combined.tsv"
-	resources:
-		slurm_extra=lambda wildcards: (
-			f"--qos=normal "
-			f"--output={wildcards.results}/logs/immcantation/{wildcards.sample}_make_input2.out "
-			f"--error={wildcards.results}/logs/immcandataion/{wildcards.sample}_make_input2.err"
-		)
 	singularity:
 		config["IMMCANTATION_CONTAINER"]
 	threads:
@@ -136,12 +118,6 @@ rule define_clones:
 		# memory      = "select[mem>100] rusage[mem=100]",
 		outdir      = "{results}/R_analysis/merged/define_clones",
 		distance    = 0.15
-	resources:
-		slurm_extra=lambda wildcards: (
-			f"--qos=normal "
-			f"--output={wildcards.results}/logs/immcantation/{wildcards.sample}_define_clones.out "
-			f"--error={wildcards.results}/logs/immcandataion/{wildcards.sample}_define_clones.err"
-		)
 	singularity:
 		config["IMMCANTATION_CONTAINER"]
 	threads:

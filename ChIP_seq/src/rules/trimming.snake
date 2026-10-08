@@ -45,12 +45,6 @@ rule bbduk:
         out_dir   = os.path.join(RESULTS2, "bbduk_trim"),
         paired    = IS_PAIRED,
         input_fq  = _get_fastqs
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/bbduk/bbduk_{wildcards.sample}.out "
-            f"--error={wildcards.results}/logs/bbduk/bbduk_{wildcards.sample}.err"
-        )
     singularity:
        GENERAL_CONTAINER
     shell:
@@ -90,12 +84,6 @@ rule cutadapt:
         out_dir   = os.path.join(RESULTS2, "cutadapt_trim"),
         paired    = IS_PAIRED,
         input_fq  = _get_fastqs
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/cutadapt/cutadapt_{wildcards.sample}.out "
-            f"--error={wildcards.results}/logs/cutadapt/cutadapt_{wildcards.sample}.err"
-        )
     singularity:
        GENERAL_CONTAINER
     message:
@@ -128,12 +116,7 @@ rule no_trim:
         fastqc_output = "{results}/fastqc_pre_trim/fastqc_{sample}_summary_untrimmed.txt"
     output:
         "{results}/no_trim/{sample}.txt"
-    resources:
-        slurm_extra=lambda wildcards: (
-            f"--qos=cpu-normal "
-            f"--output={wildcards.results}/logs/no_trim/no_trim_{wildcards.sample}.out "
-            f"--error={wildcards.results}/logs/no_trim/no_trim_{wildcards.sample}.err"
-        )
+
     run:
         with open(output[0], "w") as out:
             out.write("No trimming done on these samples\n")
