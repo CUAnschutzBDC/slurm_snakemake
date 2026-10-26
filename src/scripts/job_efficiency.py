@@ -93,7 +93,7 @@ def get_job_information(in_dir):
 	job_dict = {}
 	all_files = os.listdir(in_dir)
 	pattern = r"Job (\d*) has been submitted with SLURM jobid (\d*) (.*)"
-	job_name_pattern = r".snakemake/slurm_logs/([^/]+)/"
+	job_name_pattern = r"(?:logs/|\.snakemake/slurm_logs/)(rule_[^/]+)/"
 
 	for file_name in all_files:
 		in_file = os.path.join(in_dir, file_name)
